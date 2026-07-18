@@ -1,0 +1,6 @@
+interface:
+  display_name: "Fund Rotation Analyst"
+  short_description: "三周基金轮动、A股杠杆温度、ETF交易质量与定版可视化报告"
+  default_prompt: "Use $fund-rotation-analyst to build a weekly-visual-v2 evidence-audited three-week fund rotation report with incremental caching, portfolio/style/sector trajectories, display-only A-share leverage heat and deleveraging pressure, separate ETF closing and live quality, gated allocation actions, explicit degraded states, and HTML validation."
+policy:
+  allow_implicit_invocation: true

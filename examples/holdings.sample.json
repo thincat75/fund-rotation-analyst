@@ -1,0 +1,41 @@
+{
+  "portfolio_meta": {
+    "weight_mode": "amount",
+    "weight_note": "公开演示组合，金额为虚构数据，不代表任何真实账户。",
+    "amounts_are_assumptions": true
+  },
+  "holdings": [
+    {
+      "code": "000051",
+      "name": "华夏沪深300ETF联接A",
+      "amount": 40000,
+      "cost": 38000,
+      "is_core": true,
+      "tags": ["宽基", "大盘", "核心"]
+    },
+    {
+      "code": "110022",
+      "name": "易方达消费行业股票",
+      "amount": 25000,
+      "cost": 26000,
+      "is_core": false,
+      "tags": ["主动权益", "消费"]
+    },
+    {
+      "code": "161725",
+      "name": "招商中证白酒指数(LOF)A",
+      "amount": 20000,
+      "cost": 21000,
+      "is_core": false,
+      "tags": ["指数", "消费", "白酒"]
+    },
+    {
+      "code": "006327",
+      "name": "易方达中证海外中国互联网50ETF联接人民币A",
+      "amount": 15000,
+      "cost": 14500,
+      "is_core": false,
+      "tags": ["QDII", "港股科技"]
+    }
+  ]
+}

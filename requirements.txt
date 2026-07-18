@@ -1,0 +1,4 @@
+akshare==1.18.64
+pandas==3.0.4
+PyYAML==6.0.3
+tushare==1.4.29

@@ -1,0 +1,23 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+.venv/
+__pycache__/
+*.py[cod]
+*.log
+
+work/cache/
+work/request-cache/
+work/*health*.json
+work/*shadow*.json
+outputs/
+examples/generated/
+
+# Portfolio files may contain private financial information.
+holdings.json
+holdings.*.json
+!examples/holdings.sample.json
+
+# Never commit credentials or local Codex state.
+.codex/

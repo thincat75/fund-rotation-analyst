@@ -1,0 +1,42 @@
+{
+  "exact": {
+    "油田服务": {"theme_l1": "资源能源", "theme_l2": "油气产业链/油服", "style_tags": ["周期"], "exposure_keys": []},
+    "集成电路封测": {"theme_l1": "科技", "theme_l2": "半导体/封测", "style_tags": ["成长"], "exposure_keys": ["半导体设备/材料"]},
+    "集成电路制造": {"theme_l1": "科技", "theme_l2": "半导体/制造", "style_tags": ["成长"], "exposure_keys": ["半导体设备/材料"]},
+    "先进封装": {"theme_l1": "科技", "theme_l2": "半导体/先进封装", "style_tags": ["成长"], "exposure_keys": ["半导体设备/材料"]},
+    "国有大型银行Ⅲ": {"theme_l1": "金融", "theme_l2": "银行", "style_tags": ["红利", "价值"], "exposure_keys": ["红利价值"]},
+    "医疗服务": {"theme_l1": "医药", "theme_l2": "医疗服务", "style_tags": ["成长"], "exposure_keys": ["创新药/医药"]},
+    "医药商业": {"theme_l1": "医药", "theme_l2": "医药流通", "style_tags": [], "exposure_keys": ["创新药/医药"]},
+    "化学制药": {"theme_l1": "医药", "theme_l2": "化学制药", "style_tags": ["成长"], "exposure_keys": ["创新药/医药"]},
+    "中药": {"theme_l1": "医药", "theme_l2": "中药", "style_tags": ["防御"], "exposure_keys": ["创新药/医药"]},
+    "生物制品": {"theme_l1": "医药", "theme_l2": "生物制品", "style_tags": ["成长"], "exposure_keys": ["创新药/医药"]},
+    "白酒": {"theme_l1": "消费", "theme_l2": "白酒", "style_tags": ["价值"], "exposure_keys": []},
+    "影视院线": {"theme_l1": "消费", "theme_l2": "传媒娱乐/院线", "style_tags": [], "exposure_keys": []},
+    "视频媒体": {"theme_l1": "消费", "theme_l2": "传媒娱乐/视频", "style_tags": [], "exposure_keys": []},
+    "文字媒体": {"theme_l1": "消费", "theme_l2": "传媒出版", "style_tags": [], "exposure_keys": []},
+    "生猪养殖": {"theme_l1": "农业", "theme_l2": "养殖", "style_tags": ["周期"], "exposure_keys": []},
+    "电信运营商": {"theme_l1": "科技", "theme_l2": "通信运营", "style_tags": ["红利"], "exposure_keys": ["AI光模块/通信"]},
+    "航海装备Ⅲ": {"theme_l1": "制造", "theme_l2": "船舶/海工装备", "style_tags": ["周期"], "exposure_keys": []}
+  },
+  "keyword_rules": [
+    {"keywords": ["半导体", "集成电路", "芯片", "封测"], "theme_l1": "科技", "theme_l2": "半导体", "style_tags": ["成长"], "exposure_keys": ["半导体设备/材料"]},
+    {"keywords": ["通信", "光模块", "电信"], "theme_l1": "科技", "theme_l2": "通信", "style_tags": ["成长"], "exposure_keys": ["AI光模块/通信"]},
+    {"keywords": ["计算机", "软件", "IT服务", "服务器"], "theme_l1": "科技", "theme_l2": "计算机", "style_tags": ["成长"], "exposure_keys": ["PCB/AI服务器"]},
+    {"keywords": ["银行"], "theme_l1": "金融", "theme_l2": "银行", "style_tags": ["红利", "价值"], "exposure_keys": ["红利价值"]},
+    {"keywords": ["证券", "保险"], "theme_l1": "金融", "theme_l2": "非银金融", "style_tags": ["价值"], "exposure_keys": []},
+    {"keywords": ["油气", "石油", "油田", "炼化"], "theme_l1": "资源能源", "theme_l2": "油气产业链", "style_tags": ["周期"], "exposure_keys": []},
+    {"keywords": ["煤炭"], "theme_l1": "资源能源", "theme_l2": "煤炭", "style_tags": ["周期", "红利"], "exposure_keys": ["红利价值"]},
+    {"keywords": ["有色", "黄金", "稀土", "金属"], "theme_l1": "资源能源", "theme_l2": "有色金属", "style_tags": ["周期"], "exposure_keys": []},
+    {"keywords": ["医药", "医疗", "生物", "制药", "CXO"], "theme_l1": "医药", "theme_l2": "医药医疗", "style_tags": ["成长"], "exposure_keys": ["创新药/医药"]},
+    {"keywords": ["白酒", "食品", "饮料", "家电", "零售"], "theme_l1": "消费", "theme_l2": "消费品", "style_tags": [], "exposure_keys": []},
+    {"keywords": ["汽车", "乘用车"], "theme_l1": "消费", "theme_l2": "汽车", "style_tags": ["成长"], "exposure_keys": []},
+    {"keywords": ["军工", "航空", "航天", "船舶", "航海装备"], "theme_l1": "制造", "theme_l2": "国防军工/高端制造", "style_tags": ["成长"], "exposure_keys": []},
+    {"keywords": ["机械", "设备", "工业"], "theme_l1": "制造", "theme_l2": "机械设备", "style_tags": ["周期"], "exposure_keys": []},
+    {"keywords": ["光伏", "电池", "储能", "新能源", "电力设备"], "theme_l1": "制造", "theme_l2": "新能源设备", "style_tags": ["成长"], "exposure_keys": ["新能源"]},
+    {"keywords": ["养殖", "种植", "农产品", "饲料"], "theme_l1": "农业", "theme_l2": "农林牧渔", "style_tags": ["周期"], "exposure_keys": []},
+    {"keywords": ["电力", "燃气", "水务", "环保"], "theme_l1": "公用事业", "theme_l2": "公用事业", "style_tags": ["红利"], "exposure_keys": []},
+    {"keywords": ["地产", "房地产", "建筑"], "theme_l1": "地产建筑", "theme_l2": "地产建筑", "style_tags": ["价值", "周期"], "exposure_keys": []},
+    {"keywords": ["物流", "港口", "航运", "铁路", "交通"], "theme_l1": "交通运输", "theme_l2": "交通运输", "style_tags": ["周期"], "exposure_keys": []},
+    {"keywords": ["传媒", "影视", "游戏", "出版", "媒体"], "theme_l1": "消费", "theme_l2": "传媒娱乐", "style_tags": [], "exposure_keys": []}
+  ]
+}

@@ -1,0 +1,2327 @@
+{
+  "schema_version": 2,
+  "data_revision": "2.8",
+  "report_format_version": "weekly-visual-v2",
+  "report_contract": {
+    "format_version": "weekly-visual-v2",
+    "mandatory_sections": [
+      "kpi",
+      "llm-synthesis",
+      "three-week-portfolio",
+      "three-week-style",
+      "margin-leverage",
+      "three-week-industry",
+      "three-week-concept",
+      "weekly-conclusion",
+      "holdings",
+      "style",
+      "sector-week",
+      "sector-today",
+      "sector-today-flow",
+      "flows",
+      "difference",
+      "proxy",
+      "etf",
+      "replacement",
+      "cache-audit",
+      "quality"
+    ],
+    "render_targets": [
+      "markdown",
+      "html"
+    ]
+  },
+  "as_of": "2026-07-18T11:41:38",
+  "source": "mock",
+  "mode": "quick",
+  "week": {
+    "period_mode": "completed",
+    "completeness": "complete",
+    "requested_end_date": null,
+    "baseline_date": "2026-07-10",
+    "start_date": "2026-07-13",
+    "end_date": "2026-07-17",
+    "calendar_source": "mock_weekday_calendar"
+  },
+  "holdings_hash": "1588f591badfdcb0",
+  "portfolio": {
+    "weight_basis": "amount_weight",
+    "weight_basis_display": "持仓金额权重",
+    "weight_assumption": "按持仓金额计算组合占比。",
+    "nav_coverage_weight": 1.0,
+    "weekly_return": -2.4599999999999964,
+    "partial_weekly_return": -2.4599999999999964,
+    "return_status": "ok",
+    "funds": [
+      {
+        "code": "000051",
+        "name": "华夏沪深300ETF联接A",
+        "current_weight": 0.4,
+        "is_core": true,
+        "themes": [
+          "大盘",
+          "宽基",
+          "核心"
+        ],
+        "theme_basis": "名称/用户标签",
+        "profile_status": "missing",
+        "fund_size": null,
+        "turnover": null,
+        "product_type": "被动指数/ETF联接",
+        "disclosure_period": "-",
+        "candidate_kind": "fund",
+        "product_evidence_available": false,
+        "theme_evidence_available": true,
+        "quality_flags": [],
+        "data_status": "ok",
+        "baseline_date": "2026-07-10",
+        "latest_date": "2026-07-17",
+        "baseline_value": 1.0,
+        "baseline_lag_days": 0,
+        "latest_value": 0.96,
+        "week_return": -4.0000000000000036,
+        "one_month": -4.859876436764532,
+        "three_month": null,
+        "max_drawdown_1y": -4.9599990495999835,
+        "week_range": 4.166666666666674,
+        "score_components": {
+          "weekly_performance": 0.0,
+          "one_month_trend": 0.0,
+          "sector_confirmation": 25.0,
+          "style_alignment": 50.0,
+          "trading_quality": null,
+          "portfolio_fit": 40.0
+        },
+        "score_coverage": 0.9,
+        "weekly_score": 15.56,
+        "score_confidence": "中",
+        "score_evidence": [
+          "未进入板块收益Top10，暂无资金确认"
+        ],
+        "score_missing_components": [
+          "产品/交易质量"
+        ],
+        "score_unavailable_reason": null,
+        "decision_action": "替换候选",
+        "decision_reason": "有效周度综合分低于45，进入替换观察池",
+        "strong_theme_overlap": []
+      },
+      {
+        "code": "110022",
+        "name": "易方达消费行业股票",
+        "current_weight": 0.25,
+        "is_core": false,
+        "themes": [
+          "主动权益",
+          "消费"
+        ],
+        "theme_basis": "名称/用户标签",
+        "profile_status": "missing",
+        "fund_size": null,
+        "turnover": null,
+        "product_type": "主动基金",
+        "disclosure_period": "-",
+        "candidate_kind": "fund",
+        "product_evidence_available": false,
+        "theme_evidence_available": false,
+        "quality_flags": [],
+        "data_status": "ok",
+        "baseline_date": "2026-07-10",
+        "latest_date": "2026-07-17",
+        "baseline_value": 1.15,
+        "baseline_lag_days": 0,
+        "latest_value": 1.1201,
+        "week_return": -2.59999999999998,
+        "one_month": -1.6425112288758759,
+        "three_month": null,
+        "max_drawdown_1y": -2.59999999999998,
+        "week_range": 2.6694045174537884,
+        "score_components": {
+          "weekly_performance": 20.0,
+          "one_month_trend": 20.0,
+          "sector_confirmation": 25.0,
+          "style_alignment": 50.0,
+          "trading_quality": null,
+          "portfolio_fit": 40.0
+        },
+        "score_coverage": 0.9,
+        "weekly_score": 26.67,
+        "score_confidence": "中",
+        "score_evidence": [
+          "未进入板块收益Top10，暂无资金确认"
+        ],
+        "score_missing_components": [
+          "产品/交易质量"
+        ],
+        "score_unavailable_reason": null,
+        "decision_action": "替换候选",
+        "decision_reason": "有效周度综合分低于45，进入替换观察池",
+        "strong_theme_overlap": []
+      },
+      {
+        "code": "161725",
+        "name": "招商中证白酒指数(LOF)A",
+        "current_weight": 0.2,
+        "is_core": false,
+        "themes": [
+          "指数",
+          "消费",
+          "白酒"
+        ],
+        "theme_basis": "名称/用户标签",
+        "profile_status": "missing",
+        "fund_size": null,
+        "turnover": null,
+        "product_type": "被动指数/ETF联接",
+        "disclosure_period": "-",
+        "candidate_kind": "fund",
+        "product_evidence_available": false,
+        "theme_evidence_available": true,
+        "quality_flags": [],
+        "data_status": "ok",
+        "baseline_date": "2026-07-10",
+        "latest_date": "2026-07-17",
+        "baseline_value": 1.3,
+        "baseline_lag_days": 0,
+        "latest_value": 1.2844,
+        "week_return": -1.200000000000001,
+        "one_month": 1.6193105172505273,
+        "three_month": null,
+        "max_drawdown_1y": -1.200000000000001,
+        "week_range": 1.2145748987854255,
+        "score_components": {
+          "weekly_performance": 40.0,
+          "one_month_trend": 40.0,
+          "sector_confirmation": 25.0,
+          "style_alignment": 50.0,
+          "trading_quality": null,
+          "portfolio_fit": 40.0
+        },
+        "score_coverage": 0.9,
+        "weekly_score": 37.78,
+        "score_confidence": "中",
+        "score_evidence": [
+          "未进入板块收益Top10，暂无资金确认"
+        ],
+        "score_missing_components": [
+          "产品/交易质量"
+        ],
+        "score_unavailable_reason": null,
+        "decision_action": "替换候选",
+        "decision_reason": "有效周度综合分低于45，进入替换观察池",
+        "strong_theme_overlap": []
+      },
+      {
+        "code": "006327",
+        "name": "易方达中证海外中国互联网50ETF联接人民币A",
+        "current_weight": 0.15,
+        "is_core": false,
+        "themes": [
+          "QDII",
+          "港股/海外科技",
+          "港股科技"
+        ],
+        "theme_basis": "名称/用户标签",
+        "profile_status": "missing",
+        "fund_size": null,
+        "turnover": null,
+        "product_type": "被动指数/ETF联接",
+        "disclosure_period": "-",
+        "candidate_kind": "fund",
+        "product_evidence_available": false,
+        "theme_evidence_available": true,
+        "quality_flags": [],
+        "data_status": "ok",
+        "baseline_date": "2026-07-10",
+        "latest_date": "2026-07-17",
+        "baseline_value": 1.45,
+        "baseline_lag_days": 0,
+        "latest_value": 1.4529,
+        "week_return": 0.20000000000000018,
+        "one_month": 4.925254567776416,
+        "three_month": null,
+        "max_drawdown_1y": 0.0,
+        "week_range": 0.20000000000000018,
+        "score_components": {
+          "weekly_performance": 60.0,
+          "one_month_trend": 60.0,
+          "sector_confirmation": 25.0,
+          "style_alignment": 50.0,
+          "trading_quality": null,
+          "portfolio_fit": 65.0
+        },
+        "score_coverage": 0.9,
+        "weekly_score": 51.67,
+        "score_confidence": "中",
+        "score_evidence": [
+          "未进入板块收益Top10，暂无资金确认"
+        ],
+        "score_missing_components": [
+          "产品/交易质量"
+        ],
+        "score_unavailable_reason": null,
+        "decision_action": "观察",
+        "decision_reason": "缺少与强势板块一致的充分证据",
+        "strong_theme_overlap": []
+      }
+    ]
+  },
+  "market": {
+    "style_indexes": [
+      {
+        "name": "科创50",
+        "data_status": "ok",
+        "baseline_date": "2026-07-10",
+        "latest_date": "2026-07-17",
+        "baseline_value": 1000.0,
+        "baseline_lag_days": 0,
+        "latest_value": 1045.0,
+        "week_return": 4.499999999999993,
+        "one_month": 11.917536520194204,
+        "three_month": null,
+        "max_drawdown_1y": 0.0,
+        "week_range": 4.499999999999993,
+        "data_status_display": "正常"
+      },
+      {
+        "name": "沪深300",
+        "data_status": "ok",
+        "baseline_date": "2026-07-10",
+        "latest_date": "2026-07-17",
+        "baseline_value": 4000.0,
+        "baseline_lag_days": 0,
+        "latest_value": 3950.0,
+        "week_return": -1.2499999999999956,
+        "one_month": -0.3673764573969507,
+        "three_month": null,
+        "max_drawdown_1y": -1.2499999999999956,
+        "week_range": 1.2658227848101333,
+        "data_status_display": "正常"
+      }
+    ],
+    "sector_top10": {
+      "industry_return": [
+        {
+          "name": "半导体设备",
+          "type": "industry",
+          "week_return": 8.2,
+          "today_flow": 1200000000.0,
+          "five_day_flow": 3600000000.0,
+          "ten_day_flow": 5800000000.0,
+          "flow_status": "持续流入",
+          "flow_status_display": "持续流入",
+          "flow_status_reason": "持续流入：今日流入、5日流入、10日流入",
+          "flow_conflict": false,
+          "flow_period_dates": {},
+          "return_basis": "5日资金流排行涨跌幅",
+          "flow_basis": "unavailable · 资金净额统一换算为人民币元，报告按亿元展示",
+          "flow_unit": "元",
+          "flow_source_dates": {},
+          "source_date": "2026-07-17",
+          "universe_scope": "全市场",
+          "cache_age_days": 0,
+          "theme": "科技/半导体",
+          "theme_l1": "科技",
+          "theme_l2": "半导体",
+          "style_tags": [
+            "成长"
+          ],
+          "exposure_keys": [
+            "半导体设备/材料"
+          ],
+          "classification_basis": "行业名称关键词映射",
+          "classification_confidence": "中",
+          "classification_status": "已分类",
+          "current_coverage": "缺失",
+          "coverage_weight": 0,
+          "related_holdings": [],
+          "candidate_funds": [],
+          "candidate_etfs": [
+            "560780",
+            "562590",
+            "159516",
+            "159558"
+          ],
+          "interpretation": "半导体设备 周收益口径为5日资金流排行涨跌幅；资金状态持续流入；当前组合缺失。"
+        },
+        {
+          "name": "通信设备",
+          "type": "industry",
+          "week_return": -3.1,
+          "today_flow": -800000000.0,
+          "five_day_flow": -2000000000.0,
+          "ten_day_flow": -3000000000.0,
+          "flow_status": "持续流出",
+          "flow_status_display": "持续流出",
+          "flow_status_reason": "持续流出：今日流出、5日流出、10日流出",
+          "flow_conflict": false,
+          "flow_period_dates": {},
+          "return_basis": "5日资金流排行涨跌幅",
+          "flow_basis": "unavailable · 资金净额统一换算为人民币元，报告按亿元展示",
+          "flow_unit": "元",
+          "flow_source_dates": {},
+          "source_date": "2026-07-17",
+          "universe_scope": "全市场",
+          "cache_age_days": 0,
+          "theme": "科技/通信",
+          "theme_l1": "科技",
+          "theme_l2": "通信",
+          "style_tags": [
+            "成长"
+          ],
+          "exposure_keys": [
+            "AI光模块/通信"
+          ],
+          "classification_basis": "行业名称关键词映射",
+          "classification_confidence": "中",
+          "classification_status": "已分类",
+          "current_coverage": "缺失",
+          "coverage_weight": 0,
+          "related_holdings": [],
+          "candidate_funds": [],
+          "candidate_etfs": [],
+          "interpretation": "通信设备 周收益口径为5日资金流排行涨跌幅；资金状态持续流出；当前组合缺失。"
+        }
+      ],
+      "concept_return": [
+        {
+          "name": "先进封装",
+          "type": "concept",
+          "week_return": 9.5,
+          "today_flow": 800000000.0,
+          "five_day_flow": 1500000000.0,
+          "ten_day_flow": -200000000.0,
+          "flow_status": "持续流入",
+          "flow_status_display": "持续流入",
+          "flow_status_reason": "持续流入：今日流入、5日流入、10日流出",
+          "flow_conflict": false,
+          "flow_period_dates": {},
+          "return_basis": "5日资金流排行涨跌幅",
+          "flow_basis": "unavailable · 资金净额统一换算为人民币元，报告按亿元展示",
+          "flow_unit": "元",
+          "flow_source_dates": {},
+          "source_date": "2026-07-17",
+          "universe_scope": "全市场",
+          "cache_age_days": 0,
+          "theme": "科技/半导体/先进封装",
+          "theme_l1": "科技",
+          "theme_l2": "半导体/先进封装",
+          "style_tags": [
+            "成长"
+          ],
+          "exposure_keys": [
+            "半导体设备/材料"
+          ],
+          "classification_basis": "行业名称精确映射",
+          "classification_confidence": "高",
+          "classification_status": "已分类",
+          "current_coverage": "缺失",
+          "coverage_weight": 0,
+          "related_holdings": [],
+          "candidate_funds": [],
+          "candidate_etfs": [
+            "560780",
+            "562590",
+            "159516",
+            "159558"
+          ],
+          "interpretation": "先进封装 周收益口径为5日资金流排行涨跌幅；资金状态持续流入；当前组合缺失。"
+        },
+        {
+          "name": "光模块",
+          "type": "concept",
+          "week_return": -4.0,
+          "today_flow": -500000000.0,
+          "five_day_flow": -1100000000.0,
+          "ten_day_flow": -1800000000.0,
+          "flow_status": "持续流出",
+          "flow_status_display": "持续流出",
+          "flow_status_reason": "持续流出：今日流出、5日流出、10日流出",
+          "flow_conflict": false,
+          "flow_period_dates": {},
+          "return_basis": "5日资金流排行涨跌幅",
+          "flow_basis": "unavailable · 资金净额统一换算为人民币元，报告按亿元展示",
+          "flow_unit": "元",
+          "flow_source_dates": {},
+          "source_date": "2026-07-17",
+          "universe_scope": "全市场",
+          "cache_age_days": 0,
+          "theme": "科技/通信",
+          "theme_l1": "科技",
+          "theme_l2": "通信",
+          "style_tags": [
+            "成长"
+          ],
+          "exposure_keys": [
+            "AI光模块/通信"
+          ],
+          "classification_basis": "行业名称关键词映射",
+          "classification_confidence": "中",
+          "classification_status": "已分类",
+          "current_coverage": "缺失",
+          "coverage_weight": 0,
+          "related_holdings": [],
+          "candidate_funds": [],
+          "candidate_etfs": [],
+          "interpretation": "光模块 周收益口径为5日资金流排行涨跌幅；资金状态持续流出；当前组合缺失。"
+        }
+      ],
+      "industry_today": [
+        {
+          "name": "半导体设备",
+          "type": "industry",
+          "week_return": null,
+          "today_flow": null,
+          "five_day_flow": null,
+          "ten_day_flow": null,
+          "flow_status": "数据不足",
+          "flow_status_display": "仅单周期，暂不判断",
+          "flow_status_reason": "无足够资金周期；缺少今日、5日、10日，无法判断资金持续性",
+          "flow_conflict": false,
+          "flow_period_dates": {},
+          "return_basis": "今日快照，不属于周收益",
+          "flow_basis": "unavailable · 资金净额统一换算为人民币元，报告按亿元展示",
+          "flow_unit": "元",
+          "flow_source_dates": {},
+          "source_date": "2026-07-17",
+          "universe_scope": "全市场",
+          "cache_age_days": 0,
+          "theme": "科技/半导体",
+          "theme_l1": "科技",
+          "theme_l2": "半导体",
+          "style_tags": [
+            "成长"
+          ],
+          "exposure_keys": [
+            "半导体设备/材料"
+          ],
+          "classification_basis": "行业名称关键词映射",
+          "classification_confidence": "中",
+          "classification_status": "已分类",
+          "current_coverage": "缺失",
+          "coverage_weight": 0,
+          "related_holdings": [],
+          "candidate_funds": [],
+          "candidate_etfs": [
+            "560780",
+            "562590",
+            "159516",
+            "159558"
+          ],
+          "interpretation": "半导体设备 周收益口径为今日快照，不属于周收益；资金状态数据不足；当前组合缺失。",
+          "today_return": 2.1
+        },
+        {
+          "name": "通信设备",
+          "type": "industry",
+          "week_return": null,
+          "today_flow": null,
+          "five_day_flow": null,
+          "ten_day_flow": null,
+          "flow_status": "数据不足",
+          "flow_status_display": "仅单周期，暂不判断",
+          "flow_status_reason": "无足够资金周期；缺少今日、5日、10日，无法判断资金持续性",
+          "flow_conflict": false,
+          "flow_period_dates": {},
+          "return_basis": "今日快照，不属于周收益",
+          "flow_basis": "unavailable · 资金净额统一换算为人民币元，报告按亿元展示",
+          "flow_unit": "元",
+          "flow_source_dates": {},
+          "source_date": "2026-07-17",
+          "universe_scope": "全市场",
+          "cache_age_days": 0,
+          "theme": "科技/通信",
+          "theme_l1": "科技",
+          "theme_l2": "通信",
+          "style_tags": [
+            "成长"
+          ],
+          "exposure_keys": [
+            "AI光模块/通信"
+          ],
+          "classification_basis": "行业名称关键词映射",
+          "classification_confidence": "中",
+          "classification_status": "已分类",
+          "current_coverage": "缺失",
+          "coverage_weight": 0,
+          "related_holdings": [],
+          "candidate_funds": [],
+          "candidate_etfs": [],
+          "interpretation": "通信设备 周收益口径为今日快照，不属于周收益；资金状态数据不足；当前组合缺失。",
+          "today_return": -1.2
+        }
+      ],
+      "concept_today": [
+        {
+          "name": "先进封装",
+          "type": "concept",
+          "week_return": null,
+          "today_flow": null,
+          "five_day_flow": null,
+          "ten_day_flow": null,
+          "flow_status": "数据不足",
+          "flow_status_display": "仅单周期，暂不判断",
+          "flow_status_reason": "无足够资金周期；缺少今日、5日、10日，无法判断资金持续性",
+          "flow_conflict": false,
+          "flow_period_dates": {},
+          "return_basis": "今日快照，不属于周收益",
+          "flow_basis": "unavailable · 资金净额统一换算为人民币元，报告按亿元展示",
+          "flow_unit": "元",
+          "flow_source_dates": {},
+          "source_date": "2026-07-17",
+          "universe_scope": "全市场",
+          "cache_age_days": 0,
+          "theme": "科技/半导体/先进封装",
+          "theme_l1": "科技",
+          "theme_l2": "半导体/先进封装",
+          "style_tags": [
+            "成长"
+          ],
+          "exposure_keys": [
+            "半导体设备/材料"
+          ],
+          "classification_basis": "行业名称精确映射",
+          "classification_confidence": "高",
+          "classification_status": "已分类",
+          "current_coverage": "缺失",
+          "coverage_weight": 0,
+          "related_holdings": [],
+          "candidate_funds": [],
+          "candidate_etfs": [
+            "560780",
+            "562590",
+            "159516",
+            "159558"
+          ],
+          "interpretation": "先进封装 周收益口径为今日快照，不属于周收益；资金状态数据不足；当前组合缺失。",
+          "today_return": 3.4
+        },
+        {
+          "name": "光模块",
+          "type": "concept",
+          "week_return": null,
+          "today_flow": null,
+          "five_day_flow": null,
+          "ten_day_flow": null,
+          "flow_status": "数据不足",
+          "flow_status_display": "仅单周期，暂不判断",
+          "flow_status_reason": "无足够资金周期；缺少今日、5日、10日，无法判断资金持续性",
+          "flow_conflict": false,
+          "flow_period_dates": {},
+          "return_basis": "今日快照，不属于周收益",
+          "flow_basis": "unavailable · 资金净额统一换算为人民币元，报告按亿元展示",
+          "flow_unit": "元",
+          "flow_source_dates": {},
+          "source_date": "2026-07-17",
+          "universe_scope": "全市场",
+          "cache_age_days": 0,
+          "theme": "科技/通信",
+          "theme_l1": "科技",
+          "theme_l2": "通信",
+          "style_tags": [
+            "成长"
+          ],
+          "exposure_keys": [
+            "AI光模块/通信"
+          ],
+          "classification_basis": "行业名称关键词映射",
+          "classification_confidence": "中",
+          "classification_status": "已分类",
+          "current_coverage": "缺失",
+          "coverage_weight": 0,
+          "related_holdings": [],
+          "candidate_funds": [],
+          "candidate_etfs": [],
+          "interpretation": "光模块 周收益口径为今日快照，不属于周收益；资金状态数据不足；当前组合缺失。",
+          "today_return": -2.0
+        }
+      ],
+      "industry_today_inflow": [],
+      "concept_today_inflow": [],
+      "industry_today_outflow": [],
+      "concept_today_outflow": [],
+      "industry_inflow": [
+        {
+          "name": "半导体设备",
+          "type": "industry",
+          "week_return": 8.2,
+          "today_flow": 1200000000.0,
+          "five_day_flow": 3600000000.0,
+          "ten_day_flow": 5800000000.0,
+          "flow_status": "持续流入",
+          "flow_status_display": "持续流入",
+          "flow_status_reason": "持续流入：今日流入、5日流入、10日流入",
+          "flow_conflict": false,
+          "flow_period_dates": {},
+          "return_basis": "5日资金流排行涨跌幅",
+          "flow_basis": "unavailable · 资金净额统一换算为人民币元，报告按亿元展示",
+          "flow_unit": "元",
+          "flow_source_dates": {},
+          "source_date": "2026-07-17",
+          "universe_scope": "全市场",
+          "cache_age_days": 0,
+          "theme": "科技/半导体",
+          "theme_l1": "科技",
+          "theme_l2": "半导体",
+          "style_tags": [
+            "成长"
+          ],
+          "exposure_keys": [
+            "半导体设备/材料"
+          ],
+          "classification_basis": "行业名称关键词映射",
+          "classification_confidence": "中",
+          "classification_status": "已分类",
+          "current_coverage": "缺失",
+          "coverage_weight": 0,
+          "related_holdings": [],
+          "candidate_funds": [],
+          "candidate_etfs": [
+            "560780",
+            "562590",
+            "159516",
+            "159558"
+          ],
+          "interpretation": "半导体设备 周收益口径为5日资金流排行涨跌幅；资金状态持续流入；当前组合缺失。"
+        }
+      ],
+      "concept_inflow": [
+        {
+          "name": "先进封装",
+          "type": "concept",
+          "week_return": 9.5,
+          "today_flow": 800000000.0,
+          "five_day_flow": 1500000000.0,
+          "ten_day_flow": -200000000.0,
+          "flow_status": "持续流入",
+          "flow_status_display": "持续流入",
+          "flow_status_reason": "持续流入：今日流入、5日流入、10日流出",
+          "flow_conflict": false,
+          "flow_period_dates": {},
+          "return_basis": "5日资金流排行涨跌幅",
+          "flow_basis": "unavailable · 资金净额统一换算为人民币元，报告按亿元展示",
+          "flow_unit": "元",
+          "flow_source_dates": {},
+          "source_date": "2026-07-17",
+          "universe_scope": "全市场",
+          "cache_age_days": 0,
+          "theme": "科技/半导体/先进封装",
+          "theme_l1": "科技",
+          "theme_l2": "半导体/先进封装",
+          "style_tags": [
+            "成长"
+          ],
+          "exposure_keys": [
+            "半导体设备/材料"
+          ],
+          "classification_basis": "行业名称精确映射",
+          "classification_confidence": "高",
+          "classification_status": "已分类",
+          "current_coverage": "缺失",
+          "coverage_weight": 0,
+          "related_holdings": [],
+          "candidate_funds": [],
+          "candidate_etfs": [
+            "560780",
+            "562590",
+            "159516",
+            "159558"
+          ],
+          "interpretation": "先进封装 周收益口径为5日资金流排行涨跌幅；资金状态持续流入；当前组合缺失。"
+        }
+      ],
+      "industry_outflow": [
+        {
+          "name": "通信设备",
+          "type": "industry",
+          "week_return": -3.1,
+          "today_flow": -800000000.0,
+          "five_day_flow": -2000000000.0,
+          "ten_day_flow": -3000000000.0,
+          "flow_status": "持续流出",
+          "flow_status_display": "持续流出",
+          "flow_status_reason": "持续流出：今日流出、5日流出、10日流出",
+          "flow_conflict": false,
+          "flow_period_dates": {},
+          "return_basis": "5日资金流排行涨跌幅",
+          "flow_basis": "unavailable · 资金净额统一换算为人民币元，报告按亿元展示",
+          "flow_unit": "元",
+          "flow_source_dates": {},
+          "source_date": "2026-07-17",
+          "universe_scope": "全市场",
+          "cache_age_days": 0,
+          "theme": "科技/通信",
+          "theme_l1": "科技",
+          "theme_l2": "通信",
+          "style_tags": [
+            "成长"
+          ],
+          "exposure_keys": [
+            "AI光模块/通信"
+          ],
+          "classification_basis": "行业名称关键词映射",
+          "classification_confidence": "中",
+          "classification_status": "已分类",
+          "current_coverage": "缺失",
+          "coverage_weight": 0,
+          "related_holdings": [],
+          "candidate_funds": [],
+          "candidate_etfs": [],
+          "interpretation": "通信设备 周收益口径为5日资金流排行涨跌幅；资金状态持续流出；当前组合缺失。"
+        }
+      ],
+      "concept_outflow": [
+        {
+          "name": "光模块",
+          "type": "concept",
+          "week_return": -4.0,
+          "today_flow": -500000000.0,
+          "five_day_flow": -1100000000.0,
+          "ten_day_flow": -1800000000.0,
+          "flow_status": "持续流出",
+          "flow_status_display": "持续流出",
+          "flow_status_reason": "持续流出：今日流出、5日流出、10日流出",
+          "flow_conflict": false,
+          "flow_period_dates": {},
+          "return_basis": "5日资金流排行涨跌幅",
+          "flow_basis": "unavailable · 资金净额统一换算为人民币元，报告按亿元展示",
+          "flow_unit": "元",
+          "flow_source_dates": {},
+          "source_date": "2026-07-17",
+          "universe_scope": "全市场",
+          "cache_age_days": 0,
+          "theme": "科技/通信",
+          "theme_l1": "科技",
+          "theme_l2": "通信",
+          "style_tags": [
+            "成长"
+          ],
+          "exposure_keys": [
+            "AI光模块/通信"
+          ],
+          "classification_basis": "行业名称关键词映射",
+          "classification_confidence": "中",
+          "classification_status": "已分类",
+          "current_coverage": "缺失",
+          "coverage_weight": 0,
+          "related_holdings": [],
+          "candidate_funds": [],
+          "candidate_etfs": [],
+          "interpretation": "光模块 周收益口径为5日资金流排行涨跌幅；资金状态持续流出；当前组合缺失。"
+        }
+      ],
+      "theme_signal_proxy": [
+        {
+          "name": "半导体设备/材料",
+          "type": "fund_ranking_proxy",
+          "average_fund_week_return": 7.2,
+          "sample_size": 1,
+          "return_basis": "近1周基金排行名称主题代理，非板块收益",
+          "current_coverage": "缺失",
+          "coverage_weight": 0,
+          "related_holdings": []
+        }
+      ]
+    },
+    "weekly_top_funds": [
+      {
+        "code": "020639",
+        "name": "广发半导体设备ETF联接A",
+        "group": "全部",
+        "candidate_kind": "fund",
+        "week_return": 7.2,
+        "one_month": 24.0,
+        "themes": [
+          "半导体设备/材料"
+        ],
+        "fund_size": null,
+        "turnover": null,
+        "product_type": "被动指数/ETF联接",
+        "theme_basis": "基金名称",
+        "product_evidence_available": false,
+        "theme_evidence_available": true,
+        "disclosure_period": "-",
+        "quality_flags": [],
+        "return_basis": "基金排行收益字段",
+        "score_components": {
+          "weekly_performance": 100.0,
+          "one_month_trend": 100.0,
+          "sector_confirmation": 100.0,
+          "style_alignment": 80.0,
+          "trading_quality": null,
+          "portfolio_fit": 100.0
+        },
+        "score_coverage": 0.9,
+        "weekly_score": 97.78,
+        "score_confidence": "中",
+        "score_evidence": [
+          "半导体设备 8.20%/持续流入",
+          "先进封装 9.50%/持续流入"
+        ],
+        "score_missing_components": [
+          "产品/交易质量"
+        ],
+        "score_unavailable_reason": null
+      },
+      {
+        "code": "005844",
+        "name": "东方人工智能主题混合A",
+        "group": "全部",
+        "candidate_kind": "fund",
+        "week_return": 5.8,
+        "one_month": 18.0,
+        "themes": [
+          "未识别"
+        ],
+        "fund_size": null,
+        "turnover": null,
+        "product_type": "主动基金",
+        "theme_basis": "基金名称",
+        "product_evidence_available": false,
+        "theme_evidence_available": false,
+        "disclosure_period": "-",
+        "quality_flags": [],
+        "return_basis": "基金排行收益字段",
+        "score_components": {
+          "weekly_performance": 80.0,
+          "one_month_trend": 80.0,
+          "sector_confirmation": 25.0,
+          "style_alignment": 50.0,
+          "trading_quality": null,
+          "portfolio_fit": 40.0
+        },
+        "score_coverage": 0.9,
+        "weekly_score": 60.0,
+        "score_confidence": "中",
+        "score_evidence": [
+          "未进入板块收益Top10，暂无资金确认"
+        ],
+        "score_missing_components": [
+          "产品/交易质量"
+        ],
+        "score_unavailable_reason": null
+      }
+    ],
+    "margin_leverage": {
+      "model_version": "margin-leverage-v1",
+      "scope": "SSE+SZSE",
+      "as_of": "2026-07-17",
+      "status": "degraded",
+      "action_policy": "display_only",
+      "current": {},
+      "normalization": {},
+      "history_position": {},
+      "trends": {},
+      "heat": {
+        "score": null,
+        "label": "数据不足",
+        "coverage": 0
+      },
+      "deleveraging_pressure": {
+        "score": null,
+        "label": "数据不足",
+        "coverage": 0
+      },
+      "regime": {
+        "label": "数据不足",
+        "explanation": "沪深两融汇总数据不足。"
+      },
+      "historical_comparisons": [],
+      "concentration": {},
+      "policy_events": [
+        {
+          "date": "2014-09-22",
+          "label": "两融统计口径调整",
+          "description": "交易总量开始包含调出标的证券名单后的存量余额。",
+          "impact": "comparison_boundary"
+        },
+        {
+          "date": "2015-11-23",
+          "label": "融资保证金比例调整",
+          "description": "新开融资合约杠杆约束提高，前后增速需结合制度变化解释。",
+          "impact": "policy_regime"
+        },
+        {
+          "date": "2024-07-11",
+          "label": "转融券暂停及融券保证金调整",
+          "description": "融券余额可比性下降，评分使用融资余额而非总两融余额。",
+          "impact": "lending_regime"
+        },
+        {
+          "date": "2026-01-19",
+          "label": "融资保证金比例调整",
+          "description": "新开融资合约最低保证金比例变化，作为解释节点保留。",
+          "impact": "policy_regime"
+        }
+      ],
+      "data_quality": [
+        "沪深任一市场缺失时不发布A股汇总和评分"
+      ]
+    }
+  },
+  "candidate_etfs": [
+    {
+      "code": "159516",
+      "name": "半导体设备ETF国泰",
+      "listed_market": "SZSE",
+      "channel": "深股通",
+      "access_verified_at": "2026-06-29",
+      "price": null,
+      "iopv": 1.0,
+      "premium_rate": 0.2,
+      "premium_basis": "同日公布折价率反算",
+      "premium_as_of": "2026-07-17",
+      "published_discount_rate": -0.2,
+      "turnover": 8000000000.0,
+      "updated_at": "2026-07-18T11:41:38",
+      "price_source": "不可用",
+      "turnover_source": "报告期末历史成交额",
+      "eod_quality": {
+        "as_of": null,
+        "close": null,
+        "turnover": 8000000000.0,
+        "unit_nav": null,
+        "premium_rate": 0.2,
+        "premium_basis": "同日公布折价率反算"
+      },
+      "live_snapshot": {
+        "trade_time": "2026-07-17",
+        "price": 1.002,
+        "turnover": 8000000000.0,
+        "iopv": 1.0,
+        "premium_rate": 0.20000000000000018,
+        "premium_basis": "实时IOPV溢价",
+        "fresh_within_5m": false,
+        "price_source": "新浪ETF快照"
+      },
+      "recommendation_eligible": false,
+      "execution_ready": false,
+      "execution_note": "执行前需重新核对实时溢价",
+      "quality_flags": [],
+      "data_status": "insufficient_data",
+      "week_return": null,
+      "one_month": null,
+      "three_month": null,
+      "return_basis": "不可确认",
+      "corporate_actions": [],
+      "return_status": "insufficient_data",
+      "return_confidence": "低",
+      "supports_recommendation": false,
+      "return_crosschecks": [],
+      "themes": [
+        "半导体设备/材料"
+      ],
+      "score_components": {
+        "weekly_performance": null,
+        "one_month_trend": null,
+        "sector_confirmation": 100.0,
+        "style_alignment": 80.0,
+        "trading_quality": null,
+        "portfolio_fit": 100.0
+      },
+      "score_coverage": 0.4,
+      "weekly_score": null,
+      "score_confidence": "低",
+      "score_evidence": [
+        "半导体设备 8.20%/持续流入",
+        "先进封装 9.50%/持续流入"
+      ],
+      "score_missing_components": [
+        "本周收益横向排名",
+        "近1月趋势",
+        "产品/交易质量"
+      ],
+      "score_unavailable_reason": "未评分：缺少本周收益横向排名、近1月趋势、产品/交易质量"
+    },
+    {
+      "code": "159558",
+      "name": "半导体设备ETF易方达",
+      "listed_market": "SZSE",
+      "channel": "深股通",
+      "access_verified_at": "2026-06-29",
+      "price": null,
+      "iopv": 1.0,
+      "premium_rate": 0.8,
+      "premium_basis": "同日公布折价率反算",
+      "premium_as_of": "2026-07-17",
+      "published_discount_rate": -0.8,
+      "turnover": 3000000000.0,
+      "updated_at": "2026-07-18T11:41:38",
+      "price_source": "不可用",
+      "turnover_source": "报告期末历史成交额",
+      "eod_quality": {
+        "as_of": null,
+        "close": null,
+        "turnover": 3000000000.0,
+        "unit_nav": null,
+        "premium_rate": 0.8,
+        "premium_basis": "同日公布折价率反算"
+      },
+      "live_snapshot": {
+        "trade_time": "2026-07-17",
+        "price": 1.008,
+        "turnover": 3000000000.0,
+        "iopv": 1.0,
+        "premium_rate": 0.8000000000000007,
+        "premium_basis": "实时IOPV溢价",
+        "fresh_within_5m": false,
+        "price_source": "新浪ETF快照"
+      },
+      "recommendation_eligible": false,
+      "execution_ready": false,
+      "execution_note": "执行前需重新核对实时溢价",
+      "quality_flags": [],
+      "data_status": "insufficient_data",
+      "week_return": null,
+      "one_month": null,
+      "three_month": null,
+      "return_basis": "不可确认",
+      "corporate_actions": [],
+      "return_status": "insufficient_data",
+      "return_confidence": "低",
+      "supports_recommendation": false,
+      "return_crosschecks": [],
+      "themes": [
+        "半导体设备/材料"
+      ],
+      "score_components": {
+        "weekly_performance": null,
+        "one_month_trend": null,
+        "sector_confirmation": 100.0,
+        "style_alignment": 80.0,
+        "trading_quality": null,
+        "portfolio_fit": 100.0
+      },
+      "score_coverage": 0.4,
+      "weekly_score": null,
+      "score_confidence": "低",
+      "score_evidence": [
+        "半导体设备 8.20%/持续流入",
+        "先进封装 9.50%/持续流入"
+      ],
+      "score_missing_components": [
+        "本周收益横向排名",
+        "近1月趋势",
+        "产品/交易质量"
+      ],
+      "score_unavailable_reason": "未评分：缺少本周收益横向排名、近1月趋势、产品/交易质量"
+    },
+    {
+      "code": "562590",
+      "name": "半导体设备ETF华夏",
+      "listed_market": "SSE",
+      "channel": "沪股通",
+      "access_verified_at": "2026-06-29",
+      "price": null,
+      "iopv": 1.0,
+      "premium_rate": 1.5,
+      "premium_basis": "同日公布折价率反算",
+      "premium_as_of": "2026-07-17",
+      "published_discount_rate": -1.5,
+      "turnover": 1500000000.0,
+      "updated_at": "2026-07-18T11:41:38",
+      "price_source": "不可用",
+      "turnover_source": "报告期末历史成交额",
+      "eod_quality": {
+        "as_of": null,
+        "close": null,
+        "turnover": 1500000000.0,
+        "unit_nav": null,
+        "premium_rate": 1.5,
+        "premium_basis": "同日公布折价率反算"
+      },
+      "live_snapshot": {
+        "trade_time": "2026-07-17",
+        "price": 1.015,
+        "turnover": 1500000000.0,
+        "iopv": 1.0,
+        "premium_rate": 1.4999999999999902,
+        "premium_basis": "实时IOPV溢价",
+        "fresh_within_5m": false,
+        "price_source": "新浪ETF快照"
+      },
+      "recommendation_eligible": false,
+      "execution_ready": false,
+      "execution_note": "执行前需重新核对实时溢价",
+      "quality_flags": [
+        "溢价偏高"
+      ],
+      "data_status": "insufficient_data",
+      "week_return": null,
+      "one_month": null,
+      "three_month": null,
+      "return_basis": "不可确认",
+      "corporate_actions": [],
+      "return_status": "insufficient_data",
+      "return_confidence": "低",
+      "supports_recommendation": false,
+      "return_crosschecks": [],
+      "themes": [
+        "半导体设备/材料"
+      ],
+      "score_components": {
+        "weekly_performance": null,
+        "one_month_trend": null,
+        "sector_confirmation": 100.0,
+        "style_alignment": 80.0,
+        "trading_quality": null,
+        "portfolio_fit": 100.0
+      },
+      "score_coverage": 0.4,
+      "weekly_score": null,
+      "score_confidence": "低",
+      "score_evidence": [
+        "半导体设备 8.20%/持续流入",
+        "先进封装 9.50%/持续流入"
+      ],
+      "score_missing_components": [
+        "本周收益横向排名",
+        "近1月趋势",
+        "产品/交易质量"
+      ],
+      "score_unavailable_reason": "未评分：缺少本周收益横向排名、近1月趋势、产品/交易质量"
+    },
+    {
+      "code": "560780",
+      "name": "半导体设备ETF广发",
+      "listed_market": "SSE",
+      "channel": "沪股通",
+      "access_verified_at": "2026-06-29",
+      "price": null,
+      "iopv": 1.0,
+      "premium_rate": 3.0,
+      "premium_basis": "同日公布折价率反算",
+      "premium_as_of": "2026-07-17",
+      "published_discount_rate": -3.0,
+      "turnover": 2100000000.0,
+      "updated_at": "2026-07-18T11:41:38",
+      "price_source": "不可用",
+      "turnover_source": "报告期末历史成交额",
+      "eod_quality": {
+        "as_of": null,
+        "close": null,
+        "turnover": 2100000000.0,
+        "unit_nav": null,
+        "premium_rate": 3.0,
+        "premium_basis": "同日公布折价率反算"
+      },
+      "live_snapshot": {
+        "trade_time": "2026-07-17",
+        "price": 1.03,
+        "turnover": 2100000000.0,
+        "iopv": 1.0,
+        "premium_rate": 3.0000000000000027,
+        "premium_basis": "实时IOPV溢价",
+        "fresh_within_5m": false,
+        "price_source": "新浪ETF快照"
+      },
+      "recommendation_eligible": false,
+      "execution_ready": false,
+      "execution_note": "执行前需重新核对实时溢价",
+      "quality_flags": [
+        "追高风险"
+      ],
+      "data_status": "insufficient_data",
+      "week_return": null,
+      "one_month": null,
+      "three_month": null,
+      "return_basis": "不可确认",
+      "corporate_actions": [],
+      "return_status": "insufficient_data",
+      "return_confidence": "低",
+      "supports_recommendation": false,
+      "return_crosschecks": [],
+      "themes": [
+        "半导体设备/材料"
+      ],
+      "score_components": {
+        "weekly_performance": null,
+        "one_month_trend": null,
+        "sector_confirmation": 100.0,
+        "style_alignment": 80.0,
+        "trading_quality": null,
+        "portfolio_fit": 100.0
+      },
+      "score_coverage": 0.4,
+      "weekly_score": null,
+      "score_confidence": "低",
+      "score_evidence": [
+        "半导体设备 8.20%/持续流入",
+        "先进封装 9.50%/持续流入"
+      ],
+      "score_missing_components": [
+        "本周收益横向排名",
+        "近1月趋势",
+        "产品/交易质量"
+      ],
+      "score_unavailable_reason": "未评分：缺少本周收益横向排名、近1月趋势、产品/交易质量"
+    }
+  ],
+  "comparison": {
+    "covered_themes": [],
+    "missing_themes": [
+      "半导体设备/材料"
+    ],
+    "strong_sectors_covered": [],
+    "strong_sectors_missing": [
+      {
+        "name": "半导体设备",
+        "type": "industry",
+        "week_return": 8.2,
+        "today_flow": 1200000000.0,
+        "five_day_flow": 3600000000.0,
+        "ten_day_flow": 5800000000.0,
+        "flow_status": "持续流入",
+        "flow_status_display": "持续流入",
+        "flow_status_reason": "持续流入：今日流入、5日流入、10日流入",
+        "flow_conflict": false,
+        "flow_period_dates": {},
+        "return_basis": "5日资金流排行涨跌幅",
+        "flow_basis": "unavailable · 资金净额统一换算为人民币元，报告按亿元展示",
+        "flow_unit": "元",
+        "flow_source_dates": {},
+        "source_date": "2026-07-17",
+        "universe_scope": "全市场",
+        "cache_age_days": 0,
+        "theme": "科技/半导体",
+        "theme_l1": "科技",
+        "theme_l2": "半导体",
+        "style_tags": [
+          "成长"
+        ],
+        "exposure_keys": [
+          "半导体设备/材料"
+        ],
+        "classification_basis": "行业名称关键词映射",
+        "classification_confidence": "中",
+        "classification_status": "已分类",
+        "current_coverage": "缺失",
+        "coverage_weight": 0,
+        "related_holdings": [],
+        "candidate_funds": [],
+        "candidate_etfs": [
+          "560780",
+          "562590",
+          "159516",
+          "159558"
+        ],
+        "interpretation": "半导体设备 周收益口径为5日资金流排行涨跌幅；资金状态持续流入；当前组合缺失。"
+      },
+      {
+        "name": "先进封装",
+        "type": "concept",
+        "week_return": 9.5,
+        "today_flow": 800000000.0,
+        "five_day_flow": 1500000000.0,
+        "ten_day_flow": -200000000.0,
+        "flow_status": "持续流入",
+        "flow_status_display": "持续流入",
+        "flow_status_reason": "持续流入：今日流入、5日流入、10日流出",
+        "flow_conflict": false,
+        "flow_period_dates": {},
+        "return_basis": "5日资金流排行涨跌幅",
+        "flow_basis": "unavailable · 资金净额统一换算为人民币元，报告按亿元展示",
+        "flow_unit": "元",
+        "flow_source_dates": {},
+        "source_date": "2026-07-17",
+        "universe_scope": "全市场",
+        "cache_age_days": 0,
+        "theme": "科技/半导体/先进封装",
+        "theme_l1": "科技",
+        "theme_l2": "半导体/先进封装",
+        "style_tags": [
+          "成长"
+        ],
+        "exposure_keys": [
+          "半导体设备/材料"
+        ],
+        "classification_basis": "行业名称精确映射",
+        "classification_confidence": "高",
+        "classification_status": "已分类",
+        "current_coverage": "缺失",
+        "coverage_weight": 0,
+        "related_holdings": [],
+        "candidate_funds": [],
+        "candidate_etfs": [
+          "560780",
+          "562590",
+          "159516",
+          "159558"
+        ],
+        "interpretation": "先进封装 周收益口径为5日资金流排行涨跌幅；资金状态持续流入；当前组合缺失。"
+      }
+    ],
+    "current_vs_weekly": [
+      {
+        "code": "000051",
+        "name": "华夏沪深300ETF联接A",
+        "current_weight": 0.4,
+        "is_core": true,
+        "themes": [
+          "大盘",
+          "宽基",
+          "核心"
+        ],
+        "theme_basis": "名称/用户标签",
+        "profile_status": "missing",
+        "fund_size": null,
+        "turnover": null,
+        "product_type": "被动指数/ETF联接",
+        "disclosure_period": "-",
+        "candidate_kind": "fund",
+        "product_evidence_available": false,
+        "theme_evidence_available": true,
+        "quality_flags": [],
+        "data_status": "ok",
+        "baseline_date": "2026-07-10",
+        "latest_date": "2026-07-17",
+        "baseline_value": 1.0,
+        "baseline_lag_days": 0,
+        "latest_value": 0.96,
+        "week_return": -4.0000000000000036,
+        "one_month": -4.859876436764532,
+        "three_month": null,
+        "max_drawdown_1y": -4.9599990495999835,
+        "week_range": 4.166666666666674,
+        "score_components": {
+          "weekly_performance": 0.0,
+          "one_month_trend": 0.0,
+          "sector_confirmation": 25.0,
+          "style_alignment": 50.0,
+          "trading_quality": null,
+          "portfolio_fit": 40.0
+        },
+        "score_coverage": 0.9,
+        "weekly_score": 15.56,
+        "score_confidence": "中",
+        "score_evidence": [
+          "未进入板块收益Top10，暂无资金确认"
+        ],
+        "score_missing_components": [
+          "产品/交易质量"
+        ],
+        "score_unavailable_reason": null,
+        "decision_action": "替换候选",
+        "decision_reason": "有效周度综合分低于45，进入替换观察池",
+        "strong_theme_overlap": []
+      },
+      {
+        "code": "110022",
+        "name": "易方达消费行业股票",
+        "current_weight": 0.25,
+        "is_core": false,
+        "themes": [
+          "主动权益",
+          "消费"
+        ],
+        "theme_basis": "名称/用户标签",
+        "profile_status": "missing",
+        "fund_size": null,
+        "turnover": null,
+        "product_type": "主动基金",
+        "disclosure_period": "-",
+        "candidate_kind": "fund",
+        "product_evidence_available": false,
+        "theme_evidence_available": false,
+        "quality_flags": [],
+        "data_status": "ok",
+        "baseline_date": "2026-07-10",
+        "latest_date": "2026-07-17",
+        "baseline_value": 1.15,
+        "baseline_lag_days": 0,
+        "latest_value": 1.1201,
+        "week_return": -2.59999999999998,
+        "one_month": -1.6425112288758759,
+        "three_month": null,
+        "max_drawdown_1y": -2.59999999999998,
+        "week_range": 2.6694045174537884,
+        "score_components": {
+          "weekly_performance": 20.0,
+          "one_month_trend": 20.0,
+          "sector_confirmation": 25.0,
+          "style_alignment": 50.0,
+          "trading_quality": null,
+          "portfolio_fit": 40.0
+        },
+        "score_coverage": 0.9,
+        "weekly_score": 26.67,
+        "score_confidence": "中",
+        "score_evidence": [
+          "未进入板块收益Top10，暂无资金确认"
+        ],
+        "score_missing_components": [
+          "产品/交易质量"
+        ],
+        "score_unavailable_reason": null,
+        "decision_action": "替换候选",
+        "decision_reason": "有效周度综合分低于45，进入替换观察池",
+        "strong_theme_overlap": []
+      },
+      {
+        "code": "161725",
+        "name": "招商中证白酒指数(LOF)A",
+        "current_weight": 0.2,
+        "is_core": false,
+        "themes": [
+          "指数",
+          "消费",
+          "白酒"
+        ],
+        "theme_basis": "名称/用户标签",
+        "profile_status": "missing",
+        "fund_size": null,
+        "turnover": null,
+        "product_type": "被动指数/ETF联接",
+        "disclosure_period": "-",
+        "candidate_kind": "fund",
+        "product_evidence_available": false,
+        "theme_evidence_available": true,
+        "quality_flags": [],
+        "data_status": "ok",
+        "baseline_date": "2026-07-10",
+        "latest_date": "2026-07-17",
+        "baseline_value": 1.3,
+        "baseline_lag_days": 0,
+        "latest_value": 1.2844,
+        "week_return": -1.200000000000001,
+        "one_month": 1.6193105172505273,
+        "three_month": null,
+        "max_drawdown_1y": -1.200000000000001,
+        "week_range": 1.2145748987854255,
+        "score_components": {
+          "weekly_performance": 40.0,
+          "one_month_trend": 40.0,
+          "sector_confirmation": 25.0,
+          "style_alignment": 50.0,
+          "trading_quality": null,
+          "portfolio_fit": 40.0
+        },
+        "score_coverage": 0.9,
+        "weekly_score": 37.78,
+        "score_confidence": "中",
+        "score_evidence": [
+          "未进入板块收益Top10，暂无资金确认"
+        ],
+        "score_missing_components": [
+          "产品/交易质量"
+        ],
+        "score_unavailable_reason": null,
+        "decision_action": "替换候选",
+        "decision_reason": "有效周度综合分低于45，进入替换观察池",
+        "strong_theme_overlap": []
+      },
+      {
+        "code": "006327",
+        "name": "易方达中证海外中国互联网50ETF联接人民币A",
+        "current_weight": 0.15,
+        "is_core": false,
+        "themes": [
+          "QDII",
+          "港股/海外科技",
+          "港股科技"
+        ],
+        "theme_basis": "名称/用户标签",
+        "profile_status": "missing",
+        "fund_size": null,
+        "turnover": null,
+        "product_type": "被动指数/ETF联接",
+        "disclosure_period": "-",
+        "candidate_kind": "fund",
+        "product_evidence_available": false,
+        "theme_evidence_available": true,
+        "quality_flags": [],
+        "data_status": "ok",
+        "baseline_date": "2026-07-10",
+        "latest_date": "2026-07-17",
+        "baseline_value": 1.45,
+        "baseline_lag_days": 0,
+        "latest_value": 1.4529,
+        "week_return": 0.20000000000000018,
+        "one_month": 4.925254567776416,
+        "three_month": null,
+        "max_drawdown_1y": 0.0,
+        "week_range": 0.20000000000000018,
+        "score_components": {
+          "weekly_performance": 60.0,
+          "one_month_trend": 60.0,
+          "sector_confirmation": 25.0,
+          "style_alignment": 50.0,
+          "trading_quality": null,
+          "portfolio_fit": 65.0
+        },
+        "score_coverage": 0.9,
+        "weekly_score": 51.67,
+        "score_confidence": "中",
+        "score_evidence": [
+          "未进入板块收益Top10，暂无资金确认"
+        ],
+        "score_missing_components": [
+          "产品/交易质量"
+        ],
+        "score_unavailable_reason": null,
+        "decision_action": "观察",
+        "decision_reason": "缺少与强势板块一致的充分证据",
+        "strong_theme_overlap": []
+      }
+    ],
+    "overlap_risk": [],
+    "replacement_top3": [],
+    "replacement_status": "insufficient_evidence",
+    "replacement_status_display": "证据不足，暂不生成或补足替换建议",
+    "replacement_blockers": [
+      "没有候选同时通过收益、板块证据、产品质量和交易质量门槛",
+      "1只候选ETF溢价达到或超过2%，只能观察，不能给出分批买入建议",
+      "仅有0组候选满足至少5分分差及全部风险门槛"
+    ],
+    "replacement_note": "仅有 0 组候选满足收益、分差、板块证据、流动性和溢价门槛，未补齐伪建议。",
+    "weekly_conclusion": {
+      "market_summary": "半导体设备等方向本周收益领先。",
+      "flow_summary": "其中半导体设备获得资金持续性确认（半导体设备：持续流入：今日流入、5日流入、10日流入）。",
+      "coverage_summary": "对半导体设备未发现可验证的直接主题覆盖。",
+      "overlap_summary": "暂未识别出三只及以上基金共同暴露的重复主题。",
+      "decision_summary": "证据不足，暂不生成替换建议；现阶段以观察和控制同质化为主。",
+      "confidence_note": "只有正收益且资金持续流入的行业才视为已确认方向；其余仅作观察信号。",
+      "return_leaders": [
+        {
+          "name": "半导体设备",
+          "type": "industry",
+          "week_return": 8.2,
+          "today_flow": 1200000000.0,
+          "five_day_flow": 3600000000.0,
+          "ten_day_flow": 5800000000.0,
+          "flow_status": "持续流入",
+          "flow_status_display": "持续流入",
+          "flow_status_reason": "持续流入：今日流入、5日流入、10日流入",
+          "flow_conflict": false,
+          "flow_period_dates": {},
+          "return_basis": "5日资金流排行涨跌幅",
+          "flow_basis": "unavailable · 资金净额统一换算为人民币元，报告按亿元展示",
+          "flow_unit": "元",
+          "flow_source_dates": {},
+          "source_date": "2026-07-17",
+          "universe_scope": "全市场",
+          "cache_age_days": 0,
+          "theme": "科技/半导体",
+          "theme_l1": "科技",
+          "theme_l2": "半导体",
+          "style_tags": [
+            "成长"
+          ],
+          "exposure_keys": [
+            "半导体设备/材料"
+          ],
+          "classification_basis": "行业名称关键词映射",
+          "classification_confidence": "中",
+          "classification_status": "已分类",
+          "current_coverage": "缺失",
+          "coverage_weight": 0,
+          "related_holdings": [],
+          "candidate_funds": [],
+          "candidate_etfs": [
+            "560780",
+            "562590",
+            "159516",
+            "159558"
+          ],
+          "interpretation": "半导体设备 周收益口径为5日资金流排行涨跌幅；资金状态持续流入；当前组合缺失。"
+        }
+      ],
+      "confirmed_leaders": [
+        {
+          "name": "半导体设备",
+          "type": "industry",
+          "week_return": 8.2,
+          "today_flow": 1200000000.0,
+          "five_day_flow": 3600000000.0,
+          "ten_day_flow": 5800000000.0,
+          "flow_status": "持续流入",
+          "flow_status_display": "持续流入",
+          "flow_status_reason": "持续流入：今日流入、5日流入、10日流入",
+          "flow_conflict": false,
+          "flow_period_dates": {},
+          "return_basis": "5日资金流排行涨跌幅",
+          "flow_basis": "unavailable · 资金净额统一换算为人民币元，报告按亿元展示",
+          "flow_unit": "元",
+          "flow_source_dates": {},
+          "source_date": "2026-07-17",
+          "universe_scope": "全市场",
+          "cache_age_days": 0,
+          "theme": "科技/半导体",
+          "theme_l1": "科技",
+          "theme_l2": "半导体",
+          "style_tags": [
+            "成长"
+          ],
+          "exposure_keys": [
+            "半导体设备/材料"
+          ],
+          "classification_basis": "行业名称关键词映射",
+          "classification_confidence": "中",
+          "classification_status": "已分类",
+          "current_coverage": "缺失",
+          "coverage_weight": 0,
+          "related_holdings": [],
+          "candidate_funds": [],
+          "candidate_etfs": [
+            "560780",
+            "562590",
+            "159516",
+            "159558"
+          ],
+          "interpretation": "半导体设备 周收益口径为5日资金流排行涨跌幅；资金状态持续流入；当前组合缺失。"
+        }
+      ],
+      "unconfirmed_leaders": []
+    }
+  },
+  "warnings": [
+    "mock data enabled"
+  ],
+  "analysis_notes": [
+    "两融模块缺少同日市场规模、成交额或足够历史样本；保留可确认的绝对余额并降级展示，不影响基金评分和调仓建议。"
+  ],
+  "data_quality": [],
+  "source_audit": [],
+  "provider_policy": "akshare-only",
+  "provider_route": {},
+  "quality_summary": {
+    "recovered_datasets": 0,
+    "unresolved_datasets": 0,
+    "optional_unavailable_datasets": 0,
+    "delivery_status": "complete",
+    "core_sections_complete": true
+  },
+  "constraints": {
+    "single_fund_cap": 0.25,
+    "single_theme_cap": 0.4,
+    "high_volatility_adjustment_cap": 0.1
+  },
+  "disclaimer": "本报告仅用于基金级别复盘与组合分析，不构成自动交易指令或收益承诺。",
+  "three_week_analysis": {
+    "status": "degraded",
+    "periods": [
+      {
+        "period_id": "W-2",
+        "label": "上上周",
+        "baseline_date": "2026-06-26",
+        "start_date": "2026-06-29",
+        "end_date": "2026-07-03",
+        "trade_dates": [
+          "2026-06-29",
+          "2026-06-30",
+          "2026-07-01",
+          "2026-07-02",
+          "2026-07-03"
+        ],
+        "trade_days": 5,
+        "completeness": "complete",
+        "eligible_for_action": true
+      },
+      {
+        "period_id": "W-1",
+        "label": "上周",
+        "baseline_date": "2026-07-03",
+        "start_date": "2026-07-06",
+        "end_date": "2026-07-10",
+        "trade_dates": [
+          "2026-07-06",
+          "2026-07-07",
+          "2026-07-08",
+          "2026-07-09",
+          "2026-07-10"
+        ],
+        "trade_days": 5,
+        "completeness": "complete",
+        "eligible_for_action": true
+      },
+      {
+        "period_id": "W0",
+        "label": "本周",
+        "baseline_date": "2026-07-10",
+        "start_date": "2026-07-13",
+        "end_date": "2026-07-17",
+        "trade_dates": [
+          "2026-07-13",
+          "2026-07-14",
+          "2026-07-15",
+          "2026-07-16",
+          "2026-07-17"
+        ],
+        "trade_days": 5,
+        "completeness": "complete",
+        "eligible_for_action": true
+      }
+    ],
+    "portfolio": {
+      "weekly_returns": {
+        "W-2": 0.33621648187663,
+        "W-1": 0.3316467905298881,
+        "W0": -2.4599999999999964
+      },
+      "coverage": {
+        "W-2": 1.0,
+        "W-1": 1.0,
+        "W0": 1.0
+      },
+      "three_week_compound_return": -1.8074785431821283,
+      "completed_weeks_compound_return": -1.8074785431821283,
+      "compound_basis": "三个完整交易周",
+      "action_return_basis": "仅使用完整交易周",
+      "funds": [
+        {
+          "code": "000051",
+          "name": "华夏沪深300ETF联接A",
+          "weight": 0.4,
+          "periods": {
+            "W-2": {
+              "return": -0.2643944789499031,
+              "latest_date": "2026-07-03",
+              "contribution": -0.10575779157996124
+            },
+            "W-1": {
+              "return": -0.2650953764892994,
+              "latest_date": "2026-07-10",
+              "contribution": -0.10603815059571975
+            },
+            "W0": {
+              "return": -4.0000000000000036,
+              "latest_date": "2026-07-17",
+              "contribution": -1.6000000000000014
+            }
+          },
+          "trajectory_state": "连续走弱"
+        },
+        {
+          "code": "110022",
+          "name": "易方达消费行业股票",
+          "weight": 0.25,
+          "periods": {
+            "W-2": {
+              "return": 0.2879094641927704,
+              "latest_date": "2026-07-03",
+              "contribution": 0.0719773660481926
+            },
+            "W-1": {
+              "return": 0.2871701315157127,
+              "latest_date": "2026-07-10",
+              "contribution": 0.07179253287892817
+            },
+            "W0": {
+              "return": -2.59999999999998,
+              "latest_date": "2026-07-17",
+              "contribution": -0.649999999999995
+            }
+          },
+          "trajectory_state": "连续走弱"
+        },
+        {
+          "code": "161725",
+          "name": "招商中证白酒指数(LOF)A",
+          "weight": 0.2,
+          "periods": {
+            "W-2": {
+              "return": 0.8295380611581082,
+              "latest_date": "2026-07-03",
+              "contribution": 0.16590761223162165
+            },
+            "W-1": {
+              "return": 0.8227133408614362,
+              "latest_date": "2026-07-10",
+              "contribution": 0.16454266817228724
+            },
+            "W0": {
+              "return": -1.200000000000001,
+              "latest_date": "2026-07-17",
+              "contribution": -0.2400000000000002
+            }
+          },
+          "trajectory_state": "连续走弱"
+        },
+        {
+          "code": "006327",
+          "name": "易方达中证海外中国互联网50ETF联接人民币A",
+          "weight": 0.15,
+          "periods": {
+            "W-2": {
+              "return": 1.3605953011785132,
+              "latest_date": "2026-07-03",
+              "contribution": 0.20408929517677699
+            },
+            "W-1": {
+              "return": 1.3423316004959496,
+              "latest_date": "2026-07-10",
+              "contribution": 0.20134974007439244
+            },
+            "W0": {
+              "return": 0.20000000000000018,
+              "latest_date": "2026-07-17",
+              "contribution": 0.030000000000000027
+            }
+          },
+          "trajectory_state": "连续走弱但仍为正"
+        }
+      ],
+      "overlap_risk": []
+    },
+    "styles": [
+      {
+        "name": "科创50",
+        "periods": {
+          "W-2": {
+            "return": 2.028397630087775,
+            "latest_date": "2026-07-03",
+            "rank": 1
+          },
+          "W-1": {
+            "return": 1.9880715302273755,
+            "latest_date": "2026-07-10",
+            "rank": 1
+          },
+          "W0": {
+            "return": 4.499999999999993,
+            "latest_date": "2026-07-17",
+            "rank": 1
+          }
+        }
+      },
+      {
+        "name": "沪深300",
+        "periods": {
+          "W-2": {
+            "return": 0.26191723816917367,
+            "latest_date": "2026-07-03",
+            "rank": 2
+          },
+          "W-1": {
+            "return": 0.2612330238479066,
+            "latest_date": "2026-07-10",
+            "rank": 2
+          },
+          "W0": {
+            "return": -1.2499999999999956,
+            "latest_date": "2026-07-17",
+            "rank": 2
+          }
+        }
+      }
+    ],
+    "style_regime": {
+      "current_regime": "数据不足",
+      "valid_style_count": 2,
+      "growth_minus_value": null,
+      "large_minus_small": null,
+      "current_period": "W0",
+      "current_is_partial": false,
+      "action_regime": "数据不足",
+      "action_period": "W0",
+      "regime_by_period": {
+        "W-2": {
+          "regime": "数据不足",
+          "valid_style_count": 2,
+          "growth_minus_value": null,
+          "large_minus_small": null
+        },
+        "W-1": {
+          "regime": "数据不足",
+          "valid_style_count": 2,
+          "growth_minus_value": null,
+          "large_minus_small": null
+        },
+        "W0": {
+          "regime": "数据不足",
+          "valid_style_count": 2,
+          "growth_minus_value": null,
+          "large_minus_small": null
+        }
+      }
+    },
+    "industries": [],
+    "concepts": [],
+    "rotation_path": [],
+    "sector_status": {
+      "status": "degraded",
+      "reason": "incremental cache unavailable"
+    },
+    "evidence_index": {
+      "portfolio:W-2:return": {
+        "id": "portfolio:W-2:return",
+        "entity_id": "portfolio",
+        "entity_name": "当前组合",
+        "period": "W-2",
+        "metric": "weekly_return",
+        "value": 0.33621648187663,
+        "unit": "%",
+        "source": "基金累计净值"
+      },
+      "portfolio:W-1:return": {
+        "id": "portfolio:W-1:return",
+        "entity_id": "portfolio",
+        "entity_name": "当前组合",
+        "period": "W-1",
+        "metric": "weekly_return",
+        "value": 0.3316467905298881,
+        "unit": "%",
+        "source": "基金累计净值"
+      },
+      "portfolio:W0:return": {
+        "id": "portfolio:W0:return",
+        "entity_id": "portfolio",
+        "entity_name": "当前组合",
+        "period": "W0",
+        "metric": "weekly_return",
+        "value": -2.4599999999999964,
+        "unit": "%",
+        "source": "基金累计净值"
+      },
+      "style:科创50:W-2:return": {
+        "id": "style:科创50:W-2:return",
+        "entity_id": "科创50",
+        "entity_name": "科创50",
+        "period": "W-2",
+        "metric": "weekly_return",
+        "value": 2.028397630087775,
+        "unit": "%",
+        "source": "指数历史收盘价",
+        "source_date": "2026-07-03"
+      },
+      "style:科创50:W-1:return": {
+        "id": "style:科创50:W-1:return",
+        "entity_id": "科创50",
+        "entity_name": "科创50",
+        "period": "W-1",
+        "metric": "weekly_return",
+        "value": 1.9880715302273755,
+        "unit": "%",
+        "source": "指数历史收盘价",
+        "source_date": "2026-07-10"
+      },
+      "style:科创50:W0:return": {
+        "id": "style:科创50:W0:return",
+        "entity_id": "科创50",
+        "entity_name": "科创50",
+        "period": "W0",
+        "metric": "weekly_return",
+        "value": 4.499999999999993,
+        "unit": "%",
+        "source": "指数历史收盘价",
+        "source_date": "2026-07-17"
+      },
+      "style:沪深300:W-2:return": {
+        "id": "style:沪深300:W-2:return",
+        "entity_id": "沪深300",
+        "entity_name": "沪深300",
+        "period": "W-2",
+        "metric": "weekly_return",
+        "value": 0.26191723816917367,
+        "unit": "%",
+        "source": "指数历史收盘价",
+        "source_date": "2026-07-03"
+      },
+      "style:沪深300:W-1:return": {
+        "id": "style:沪深300:W-1:return",
+        "entity_id": "沪深300",
+        "entity_name": "沪深300",
+        "period": "W-1",
+        "metric": "weekly_return",
+        "value": 0.2612330238479066,
+        "unit": "%",
+        "source": "指数历史收盘价",
+        "source_date": "2026-07-10"
+      },
+      "style:沪深300:W0:return": {
+        "id": "style:沪深300:W0:return",
+        "entity_id": "沪深300",
+        "entity_name": "沪深300",
+        "period": "W0",
+        "metric": "weekly_return",
+        "value": -1.2499999999999956,
+        "unit": "%",
+        "source": "指数历史收盘价",
+        "source_date": "2026-07-17"
+      },
+      "margin:SSE+SZSE:W0:margin_balance": {
+        "id": "margin:SSE+SZSE:W0:margin_balance",
+        "entity_id": "SSE+SZSE",
+        "entity_name": "沪深两融",
+        "period": "W0",
+        "metric": "margin_balance",
+        "value": null,
+        "unit": "元",
+        "source": "交易所汇总/经验证备用源",
+        "source_date": "2026-07-17"
+      },
+      "margin:SSE+SZSE:W0:financing_to_float_cap": {
+        "id": "margin:SSE+SZSE:W0:financing_to_float_cap",
+        "entity_id": "SSE+SZSE",
+        "entity_name": "沪深两融",
+        "period": "W0",
+        "metric": "financing_to_float_cap",
+        "value": null,
+        "unit": "%",
+        "source": "交易所汇总/经验证备用源",
+        "source_date": "2026-07-17"
+      },
+      "margin:SSE+SZSE:W0:financing_buy_to_turnover": {
+        "id": "margin:SSE+SZSE:W0:financing_buy_to_turnover",
+        "entity_id": "SSE+SZSE",
+        "entity_name": "沪深两融",
+        "period": "W0",
+        "metric": "financing_buy_to_turnover",
+        "value": null,
+        "unit": "%",
+        "source": "交易所汇总/经验证备用源",
+        "source_date": "2026-07-17"
+      },
+      "margin:SSE+SZSE:W0:heat_score": {
+        "id": "margin:SSE+SZSE:W0:heat_score",
+        "entity_id": "SSE+SZSE",
+        "entity_name": "沪深两融",
+        "period": "W0",
+        "metric": "heat_score",
+        "value": null,
+        "unit": "分",
+        "source": "交易所汇总/经验证备用源",
+        "source_date": "2026-07-17"
+      },
+      "margin:SSE+SZSE:W0:deleveraging_pressure": {
+        "id": "margin:SSE+SZSE:W0:deleveraging_pressure",
+        "entity_id": "SSE+SZSE",
+        "entity_name": "沪深两融",
+        "period": "W0",
+        "metric": "deleveraging_pressure",
+        "value": null,
+        "unit": "分",
+        "source": "交易所汇总/经验证备用源",
+        "source_date": "2026-07-17"
+      },
+      "margin:SSE+SZSE:W-2:financing_balance_change": {
+        "id": "margin:SSE+SZSE:W-2:financing_balance_change",
+        "entity_id": "SSE+SZSE",
+        "entity_name": "沪深两融",
+        "period": "W-2",
+        "metric": "financing_balance_change",
+        "value": null,
+        "unit": "%",
+        "source": "交易所汇总/经验证备用源",
+        "source_date": "2026-07-03"
+      },
+      "margin:SSE+SZSE:W-2:average_financing_intensity": {
+        "id": "margin:SSE+SZSE:W-2:average_financing_intensity",
+        "entity_id": "SSE+SZSE",
+        "entity_name": "沪深两融",
+        "period": "W-2",
+        "metric": "average_financing_intensity",
+        "value": null,
+        "unit": "%",
+        "source": "交易所汇总/经验证备用源",
+        "source_date": "2026-07-03"
+      },
+      "margin:SSE+SZSE:W-2:heat_score": {
+        "id": "margin:SSE+SZSE:W-2:heat_score",
+        "entity_id": "SSE+SZSE",
+        "entity_name": "沪深两融",
+        "period": "W-2",
+        "metric": "heat_score",
+        "value": null,
+        "unit": "分",
+        "source": "交易所汇总/经验证备用源",
+        "source_date": "2026-07-03"
+      },
+      "margin:SSE+SZSE:W-2:deleveraging_pressure_score": {
+        "id": "margin:SSE+SZSE:W-2:deleveraging_pressure_score",
+        "entity_id": "SSE+SZSE",
+        "entity_name": "沪深两融",
+        "period": "W-2",
+        "metric": "deleveraging_pressure_score",
+        "value": null,
+        "unit": "分",
+        "source": "交易所汇总/经验证备用源",
+        "source_date": "2026-07-03"
+      },
+      "margin:SSE+SZSE:W-1:financing_balance_change": {
+        "id": "margin:SSE+SZSE:W-1:financing_balance_change",
+        "entity_id": "SSE+SZSE",
+        "entity_name": "沪深两融",
+        "period": "W-1",
+        "metric": "financing_balance_change",
+        "value": null,
+        "unit": "%",
+        "source": "交易所汇总/经验证备用源",
+        "source_date": "2026-07-10"
+      },
+      "margin:SSE+SZSE:W-1:average_financing_intensity": {
+        "id": "margin:SSE+SZSE:W-1:average_financing_intensity",
+        "entity_id": "SSE+SZSE",
+        "entity_name": "沪深两融",
+        "period": "W-1",
+        "metric": "average_financing_intensity",
+        "value": null,
+        "unit": "%",
+        "source": "交易所汇总/经验证备用源",
+        "source_date": "2026-07-10"
+      },
+      "margin:SSE+SZSE:W-1:heat_score": {
+        "id": "margin:SSE+SZSE:W-1:heat_score",
+        "entity_id": "SSE+SZSE",
+        "entity_name": "沪深两融",
+        "period": "W-1",
+        "metric": "heat_score",
+        "value": null,
+        "unit": "分",
+        "source": "交易所汇总/经验证备用源",
+        "source_date": "2026-07-10"
+      },
+      "margin:SSE+SZSE:W-1:deleveraging_pressure_score": {
+        "id": "margin:SSE+SZSE:W-1:deleveraging_pressure_score",
+        "entity_id": "SSE+SZSE",
+        "entity_name": "沪深两融",
+        "period": "W-1",
+        "metric": "deleveraging_pressure_score",
+        "value": null,
+        "unit": "分",
+        "source": "交易所汇总/经验证备用源",
+        "source_date": "2026-07-10"
+      },
+      "margin:SSE+SZSE:W0:financing_balance_change": {
+        "id": "margin:SSE+SZSE:W0:financing_balance_change",
+        "entity_id": "SSE+SZSE",
+        "entity_name": "沪深两融",
+        "period": "W0",
+        "metric": "financing_balance_change",
+        "value": null,
+        "unit": "%",
+        "source": "交易所汇总/经验证备用源",
+        "source_date": "2026-07-17"
+      },
+      "margin:SSE+SZSE:W0:average_financing_intensity": {
+        "id": "margin:SSE+SZSE:W0:average_financing_intensity",
+        "entity_id": "SSE+SZSE",
+        "entity_name": "沪深两融",
+        "period": "W0",
+        "metric": "average_financing_intensity",
+        "value": null,
+        "unit": "%",
+        "source": "交易所汇总/经验证备用源",
+        "source_date": "2026-07-17"
+      },
+      "margin:SSE+SZSE:W0:deleveraging_pressure_score": {
+        "id": "margin:SSE+SZSE:W0:deleveraging_pressure_score",
+        "entity_id": "SSE+SZSE",
+        "entity_name": "沪深两融",
+        "period": "W0",
+        "metric": "deleveraging_pressure_score",
+        "value": null,
+        "unit": "分",
+        "source": "交易所汇总/经验证备用源",
+        "source_date": "2026-07-17"
+      }
+    },
+    "margin_leverage": {
+      "periods": [
+        {
+          "period_id": "W-2",
+          "completeness": "complete",
+          "end_financing_balance": null,
+          "financing_balance_change": null,
+          "average_financing_intensity": null,
+          "heat_score": null,
+          "heat_label": "数据不足",
+          "heat_coverage": null,
+          "deleveraging_pressure_score": null,
+          "deleveraging_pressure_label": "数据不足",
+          "deleveraging_pressure_coverage": null,
+          "data_status": "insufficient_data"
+        },
+        {
+          "period_id": "W-1",
+          "completeness": "complete",
+          "end_financing_balance": null,
+          "financing_balance_change": null,
+          "average_financing_intensity": null,
+          "heat_score": null,
+          "heat_label": "数据不足",
+          "heat_coverage": null,
+          "deleveraging_pressure_score": null,
+          "deleveraging_pressure_label": "数据不足",
+          "deleveraging_pressure_coverage": null,
+          "data_status": "insufficient_data"
+        },
+        {
+          "period_id": "W0",
+          "completeness": "complete",
+          "end_financing_balance": null,
+          "financing_balance_change": null,
+          "average_financing_intensity": null,
+          "heat_score": null,
+          "heat_label": "数据不足",
+          "heat_coverage": null,
+          "deleveraging_pressure_score": null,
+          "deleveraging_pressure_label": "数据不足",
+          "deleveraging_pressure_coverage": null,
+          "data_status": "insufficient_data"
+        }
+      ],
+      "current_heat": {
+        "score": null,
+        "label": "数据不足",
+        "coverage": 0
+      },
+      "current_pressure": {
+        "score": null,
+        "label": "数据不足",
+        "coverage": 0
+      }
+    }
+  },
+  "llm_synthesis": {
+    "status": "deterministic_fallback",
+    "market_regime": "数据不足",
+    "rotation_path": [],
+    "persistent_leaders": [],
+    "emerging_sectors": [],
+    "fading_sectors": [],
+    "portfolio_implications": [
+      "组合三周收益与市场风格切换需结合当前重复暴露判断。"
+    ],
+    "action_explanations": [
+      "进行中周只用于监测；正式动作至少需要两个完整周证据。"
+    ],
+    "uncertainties": [
+      "板块逐日历史不足，无法形成三周轮动判断。"
+    ],
+    "confidence": "低",
+    "evidence_refs": [],
+    "evidence_hash": "a4ceeb19fbde983375c08c9c25312477d8bcc6ae8afbde3e3ce37a919a857e6f",
+    "prompt_version": "three-week-v1"
+  },
+  "llm_evidence_hash": "a4ceeb19fbde983375c08c9c25312477d8bcc6ae8afbde3e3ce37a919a857e6f",
+  "cache": {
+    "database": "work/cache/fund-rotation/cache.sqlite3"
+  },
+  "delivery_readiness": {
+    "status": "complete",
+    "core_requirements": {
+      "行业近5个交易日收益": true,
+      "概念近5个交易日收益": true,
+      "行业近5日资金流入": true,
+      "行业近5日资金流出": true,
+      "概念近5日资金流入": true,
+      "概念近5日资金流出": true,
+      "行业最新行情": true,
+      "概念最近有效收盘": true
+    },
+    "row_counts": {
+      "industry_return": 2,
+      "concept_return": 2,
+      "industry_inflow": 1,
+      "concept_inflow": 1,
+      "industry_outflow": 1,
+      "concept_outflow": 1,
+      "industry_today": 2,
+      "concept_today": 2
+    },
+    "unresolved_required_datasets": [],
+    "consistency_errors": [],
+    "blockers": []
+  }
+}

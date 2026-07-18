@@ -1,0 +1,220 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="fund-report-format" content="weekly-visual-v2"><meta name="color-scheme" content="light"><title>三周基金轮动复盘</title>
+<style>
+:root{--bg:#f4f6f8;--card:#fff;--ink:#172033;--muted:#687386;--line:#dfe4ea;--pos:#087f5b;--neg:#c92a2a;--blue:#2457a6;--warn:#b76b00;--risk:#a61e4d}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:0}main{max-width:1320px;margin:auto;padding:24px}h1{font-size:28px;margin:0 0 6px}h2{font-size:18px;margin:0 0 14px;overflow-wrap:anywhere}h3{font-size:15px;margin:18px 0 10px}small,.muted{color:var(--muted)}.grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:14px;margin:14px 0}.span-2{grid-column:span 2}.span-4{grid-column:span 4}.span-5{grid-column:span 5}.span-6{grid-column:span 6}.span-7{grid-column:span 7}.span-12{grid-column:span 12}.card,.etf-card,.replacement{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px;min-width:0}.metric span,.metric small{display:block}.metric b{display:block;font-size:24px;margin:7px 0}.positive{color:var(--pos)}.negative{color:var(--neg)}.neutral{color:var(--muted)}.summary{border-left:4px solid var(--blue)}.summary p{margin:7px 0;line-height:1.65}.confidence-note{display:block;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}.data-row,.style-row,.quality-row{display:grid;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--line);min-width:0}.data-row>*,.style-row>*,.quality-row>*{min-width:0;overflow-wrap:anywhere}.data-row:last-child,.style-row:last-child,.quality-row:last-child{border:0}.holding-head,.holding-row{display:grid;grid-template-columns:minmax(230px,1.6fr) repeat(6,minmax(72px,.55fr)) minmax(88px,.65fr);gap:8px;align-items:center}.holding-head{padding:9px 0;border-bottom:2px solid var(--line);font-size:12px;color:var(--muted);font-weight:700}.holding-name small,.holding-field small,.holding-action small{display:block}.holding-field b{display:block;margin-top:3px}.holding-action .badge{margin-top:4px}.holding-reason{grid-column:2/-1;padding:3px 0 7px;line-height:1.5}.sector-row{grid-template-columns:minmax(170px,1.35fr) repeat(6,minmax(72px,.62fr))}.sector-row span small,.sector-row span b{display:block}.sector-evidence{grid-column:2/-1;line-height:1.5}.rank-row{grid-template-columns:38px 1fr 70px 90px}.proxy-row{grid-template-columns:1fr 80px 80px minmax(220px,1.4fr)}.style-row{grid-template-columns:100px 1fr 70px minmax(280px,1.4fr)}.track{height:10px;background:#edf0f3;border-radius:5px;overflow:hidden}.track i{display:block;height:100%;background:var(--pos)}.track i.negative{background:var(--neg)}.badge{display:inline-flex;justify-content:center;padding:4px 7px;border-radius:6px;background:#eef3fb;color:var(--blue);font-size:12px}.etf-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.etf-card.ok{border-color:#9bd8c5}.etf-card.warn{border-color:#f0c36a}.etf-card.risk{border-color:#e39aad}.etf-card header{display:flex;justify-content:space-between;gap:8px}.etf-card header small{display:block;margin-top:3px}.quote{margin:14px 0}.quote b{font-size:25px;margin-right:10px}dl{margin:0;display:grid;gap:7px}dl div{display:flex;justify-content:space-between;gap:10px}dt{color:var(--muted)}dd{margin:0;font-weight:650;text-align:right;overflow-wrap:anywhere}.replacement{display:grid;grid-template-columns:34px 1fr 1fr 140px;gap:12px;align-items:center;margin:10px 0}.replacement div>*{display:block}.replacement p{grid-column:2/-1;margin:0;color:var(--muted);line-height:1.55}.index{font-weight:800}.difference{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.difference div{padding:12px;background:#f7f9fb;border:1px solid var(--line);border-radius:6px}.empty{padding:14px;background:#f8fafc;border:1px dashed var(--line);color:var(--muted)}.decision-gap{border-color:#d7a94b;color:#765100}.quality-row{grid-template-columns:minmax(220px,1fr) 150px 110px 90px minmax(200px,1fr)}details{border:1px solid var(--line);border-radius:6px;padding:10px 12px}summary{cursor:pointer;font-weight:700;color:var(--blue)}ul{line-height:1.6}.three-head,.three-row{display:grid;grid-template-columns:minmax(180px,1.35fr) repeat(3,minmax(110px,1fr));gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}.three-head{font-size:12px;color:var(--muted);font-weight:700}.three-head span small,.three-row span small,.three-row b small{display:block;margin-top:3px}.portfolio-total{background:#f7f9fb;padding:10px;border-radius:6px;font-size:16px}.heat{padding:8px;border-left:3px solid #dfe4ea;background:#fafbfc}.heat.positive{border-color:var(--pos)}.heat.negative{border-color:var(--neg)}.synthesis-grid{display:grid;grid-template-columns:1fr 1.4fr;gap:16px}.rotation-note{display:grid;grid-template-columns:minmax(100px,1fr) auto 2fr;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)}.evidence-list{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}.evidence-chip{padding:5px 8px;background:#eef3fb;color:var(--blue);border-radius:5px;font-size:12px}
+p{overflow-wrap:anywhere}
+.sector-row{grid-template-columns:minmax(140px,1.25fr) repeat(6,minmax(54px,.55fr))}
+.span-3{grid-column:span 3}
+.skip-link{position:fixed;left:12px;top:-60px;z-index:10;background:#fff;color:var(--blue);padding:10px;border:2px solid var(--blue);border-radius:6px}.skip-link:focus{top:12px}.report-nav{display:flex;gap:6px;overflow-x:auto;padding:10px 0 4px;position:sticky;top:0;z-index:5;background:rgba(244,246,248,.96);border-bottom:1px solid var(--line)}.report-nav a{color:var(--blue);text-decoration:none;white-space:nowrap;padding:7px 9px;border-radius:5px;font-size:13px}.report-nav a:hover,.report-nav a:focus{background:#e7edf7;outline:2px solid transparent}.report-meta{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}.report-meta span{padding:4px 7px;border:1px solid var(--line);border-radius:5px;color:var(--muted);font-size:12px}.grid{scroll-margin-top:58px}
+.margin-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.margin-kpis>div{padding:13px;background:#f7f9fb;border:1px solid var(--line);border-radius:6px}.margin-kpis small,.margin-kpis b,.margin-kpis span{display:block}.margin-kpis b{font-size:21px;margin:6px 0}.metric-guide{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:14px 0}.metric-guide>div{padding:13px;border:1px solid var(--line);border-radius:6px;background:#fff}.metric-guide p{margin:7px 0;line-height:1.55;color:var(--muted)}.metric-guide strong,.metric-guide span{display:block;font-size:13px;line-height:1.55}.dual-gauge{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:16px 0}.gauge{padding:14px;border:1px solid var(--line);border-radius:6px}.gauge>span{display:flex;justify-content:space-between;gap:10px}.gauge-track{height:12px;background:#edf0f3;border-radius:6px;overflow:hidden;margin:10px 0}.gauge-track i{display:block;height:100%;background:var(--warn)}.gauge.pressure .gauge-track i{background:var(--risk)}.margin-regime{padding:14px;border-left:4px solid var(--blue);background:#f7f9fb}.margin-regime p{margin:6px 0;line-height:1.6}.margin-trends{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.spark{margin:8px 0;color:var(--blue);min-width:0}.spark svg{display:block;width:100%;height:138px;background:#fafbfc;border:1px solid var(--line);border-radius:6px}.spark figcaption{margin-top:5px;color:var(--muted);font-size:12px;overflow-wrap:anywhere}.margin-weeks{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.margin-week{padding:12px;border:1px solid var(--line);border-radius:6px}.margin-week>span{display:flex;justify-content:space-between;gap:8px;padding-top:7px}.margin-week small{display:block}.table-scroll{overflow-x:auto}.margin-table{width:100%;border-collapse:collapse;min-width:780px}.margin-table th,.margin-table td{padding:9px;text-align:left;border-bottom:1px solid var(--line);font-size:13px}.margin-table td small{display:block;margin-top:2px}.margin-notes{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px}.margin-notes li span{display:block;color:var(--muted);margin:2px 0 7px}.margin-notes p{line-height:1.6;color:var(--muted)}
+@media(max-width:900px){main{padding:14px}h1{font-size:24px}h2{font-size:15px;word-break:break-all;overflow-wrap:anywhere;white-space:normal;width:100%;max-width:100%;min-width:0}.report-nav{margin:0 -14px;padding:8px 14px}.grid{grid-template-columns:1fr}.span-2,.span-3,.span-4,.span-5,.span-6,.span-7,.span-12{grid-column:span 1}.holding-head{display:none}.holding-row,.sector-row,.rank-row,.proxy-row,.style-row,.quality-row,.replacement{grid-template-columns:1fr}.holding-field,.holding-action{display:flex;justify-content:space-between;align-items:center;padding:4px 0}.holding-field small,.holding-action small{display:block}.holding-field b,.holding-action .badge{margin:0}.holding-reason,.sector-evidence{grid-column:auto}.etf-grid,.difference,.synthesis-grid,.margin-kpis,.metric-guide,.dual-gauge,.margin-trends,.margin-weeks,.margin-notes{grid-template-columns:1fr}.replacement p{grid-column:auto}.data-row{padding:13px 0}.three-head{display:none}.three-row{grid-template-columns:1fr}.three-row>span{display:flex;justify-content:space-between;align-items:center}.rotation-note{grid-template-columns:1fr auto}.rotation-note small{grid-column:1/-1}.gauge>span{align-items:flex-start;flex-direction:column}}
+@media print{@page{size:A4;margin:12mm}body{background:#fff;color:#000}main{max-width:none;padding:0}.skip-link,.report-nav{display:none}.grid{gap:8px;margin:8px 0}.card,.etf-card,.replacement{box-shadow:none;break-inside:avoid;border-color:#aaa}details{display:none}a{color:inherit;text-decoration:none}}
+</style></head><body data-report-format="weekly-visual-v2"><a class="skip-link" href="#report-main">跳到报告正文</a><main id="report-main">
+<header><h1>三周基金轮动复盘</h1><p class="muted">Schema v2 / 数据修订 2.8 · 三周窗口 2026-06-29 → 2026-07-17 · 完整周/完整周 · 持仓金额权重</p><div class="report-meta"><span>格式 weekly-visual-v2</span><span>持仓快照 1588f591badf</span><span>证据 a4ceeb19fbde</span><span>生成时间 2026-07-18T11:41:38</span></div></header>
+<nav class="report-nav" aria-label="报告导航"><a href="#overview">综合判断</a><a href="#portfolio">组合轨迹</a><a href="#rotation">市场轮动</a><a href="#margin-leverage">杠杆温度</a><a href="#holdings">持仓表现</a><a href="#sectors">板块证据</a><a href="#etf-quality">ETF质量</a><a href="#decision">调仓观察</a><a href="#data-quality">数据审计</a></nav>
+<section id="overview" class="grid" data-section="kpi"><article class="card metric span-3 negative"><span>组合本周</span><b>-2.46%</b><small>进行中周仅作监测</small></article><article class="card metric span-3 negative"><span>截至当前复合</span><b>-1.81%</b><small>含进行中周；完整周复合 -1.81%</small></article><article class="card metric span-3 positive"><span>净值覆盖率</span><b>100.00%</b><small>正常</small></article><article class="card metric span-3 neutral"><span>本周监测风格</span><b>数据不足</b><small>动作依据：数据不足</small></article><article class="card metric span-3 neutral"><span>持续主线</span><b>0</b><small>完整周确认且本周未转弱</small></article><article class="card metric span-3 neutral"><span>当前转弱/退潮</span><b>0/0</b><small>行业全量；已排除进行中修复</small></article><article class="card metric span-3 neutral"><span>历史缓存命中</span><b>0.00%</b><small>实时行情不计入分母</small></article><article class="card metric span-3 positive"><span>真实缺口</span><b>0</b><small>全部来源失败</small></article></section>
+<section class="grid" data-section="llm-synthesis"><article class="card span-12 summary"><h2>三周综合判断</h2><div class="synthesis-grid"><div><p><b>市场状态：</b>数据不足</p><p><b>持续/增强：</b>未形成</p><p><b>新出现：</b>未确认</p><p><b>退潮：</b>未确认</p><p><b>置信度：</b>低 · 程序规则综合</p></div><div><p class="empty">没有满足两周证据门槛的轮动路径。</p></div></div><div class="evidence-list"><span class="muted">暂无跨周证据引用。</span></div></article></section>
+<section id="portfolio" class="grid" data-section="three-week-portfolio"><article class="card span-12"><h2>三周组合与持仓轨迹</h2><p class="muted">W0进行中时只用于监测，正式调仓依据来自两个完整周。“截至当前复合”包含进行中周，“完整周复合”才是动作证据；两者都要求对应周净值覆盖率达到90%。</p><div class="three-head"><b>组合/基金</b><span>上上周<small>2026-06-29至2026-07-03 · 完整</small></span><span>上周<small>2026-07-06至2026-07-10 · 完整</small></span><span>本周<small>2026-07-13至2026-07-17 · 完整</small></span></div><div class="three-row portfolio-total"><b>当前组合</b><span class="positive">0.34%<small>覆盖 100.00%</small></span><span class="positive">0.33%<small>覆盖 100.00%</small></span><span class="negative">-2.46%<small>覆盖 100.00%</small></span></div><div class="three-row" data-row="three-week-fund"><b>华夏沪深300ETF联接A<small>轨迹：连续走弱</small></b><span class="negative">-0.26%<small>贡献 -0.11%</small></span><span class="negative">-0.27%<small>贡献 -0.11%</small></span><span class="negative">-4.00%<small>贡献 -1.60%</small></span></div><div class="three-row" data-row="three-week-fund"><b>易方达消费行业股票<small>轨迹：连续走弱</small></b><span class="positive">0.29%<small>贡献 0.07%</small></span><span class="positive">0.29%<small>贡献 0.07%</small></span><span class="negative">-2.60%<small>贡献 -0.65%</small></span></div><div class="three-row" data-row="three-week-fund"><b>招商中证白酒指数(LOF)A<small>轨迹：连续走弱</small></b><span class="positive">0.83%<small>贡献 0.17%</small></span><span class="positive">0.82%<small>贡献 0.16%</small></span><span class="negative">-1.20%<small>贡献 -0.24%</small></span></div><div class="three-row" data-row="three-week-fund"><b>易方达中证海外中国互联网50ETF联接人民币A<small>轨迹：连续走弱但仍为正</small></b><span class="positive">1.36%<small>贡献 0.20%</small></span><span class="positive">1.34%<small>贡献 0.20%</small></span><span class="positive">0.20%<small>贡献 0.03%</small></span></div></article></section>
+<section id="rotation" class="grid" data-section="three-week-style"><article class="card span-12"><h2>风格三周收益与排名</h2><div class="three-row" data-row="three-week-style"><b>科创50</b><span class="heat positive">2.03%<small>#1</small></span><span class="heat positive">1.99%<small>#1</small></span><span class="heat positive">4.50%<small>#1</small></span></div><div class="three-row" data-row="three-week-style"><b>沪深300</b><span class="heat positive">0.26%<small>#2</small></span><span class="heat positive">0.26%<small>#2</small></span><span class="heat negative">-1.25%<small>#2</small></span></div></article></section>
+<section id="margin-leverage" class="grid" data-section="margin-leverage"><article class="card span-12"><h2>A股杠杆温度</h2><p class="muted">长期比较主体为沪深市场，北交所单列；总两融余额用于展示，融资余额用于评分。该模块只作市场环境展示，不参与基金评分或调仓。</p><div class="margin-kpis"><div><small>当前两融余额</small><b>数据不足</b><span>融资 数据不足 · 融券 数据不足</span></div><div><small>距离全历史峰值</small><b>-</b><span>峰值恢复度 - · 峰值日 数据不足</span></div><div><small>融资杠杆密度</small><b>-</b><span>滚动5年分位（近5年窗口） - · 历史样本待补</span><span>全历史尚未覆盖2014起点</span></div><div><small>融资交易强度</small><b>-</b><span>滚动5年分位（近5年窗口） - · 历史样本待补</span><span>全历史尚未覆盖2014起点</span></div></div><div class="metric-guide">
+        <div><b>融资杠杆密度是什么？</b><p>融资余额 / 沪深A股流通市值。反映存量市值中的杠杆参与程度。</p><strong>高低含义：不是越高越好；偏高意味着杠杆参与更深，偏低只表示杠杆参与较少。</strong></div>
+        <div><b>融资交易强度是什么？</b><p>融资买入额 / 沪深A股成交额。反映当天成交中的融资买盘参与度。</p><strong>高低含义：不是越高越好；偏高表示融资更活跃，也可能更拥挤。</strong></div>
+        <div><b>杠杆热度怎么读？</b><p>低分表示杠杆水位低，高分表示杠杆水位高；没有单独的好坏方向。</p><span>0–20低杠杆，20–70正常，70以上逐步升温。</span></div>
+        <div><b>去杠杆压力怎么读？</b><p>通常越低越平稳、越高风险越大，但不能单独预测涨跌。</p><span>0–30平稳，30–60观察，60以上逐步进入降温或去杠杆。</span></div>
+      </div><div class="dual-gauge"><div class="gauge"><span><b>杠杆热度</b><strong>未评分 · 数据不足</strong></span><div class="gauge-track"><i style="width:0.0%"></i></div><small>评分覆盖率 0.00%；反映水位，不等同顶部判断。</small></div><div class="gauge pressure"><span><b>去杠杆压力</b><strong>未评分 · 数据不足</strong></span><div class="gauge-track"><i style="width:0.0%"></i></div><small>评分覆盖率 0.00%；反映负反馈压力，不等同必然下跌。</small></div></div>
+      <div class="margin-regime"><b>二维状态：数据不足</b><p>沪深两融汇总数据不足。</p><small>截至 2026-07-17 · 降级展示 · 仅作市场环境展示，不改变基金评分、Top3、目标配比或调仓动作。</small></div>
+      <h3>近60日杠杆与市场轨迹</h3><div class="margin-trends">
+        <p class="empty">近60日两融余额历史样本不足，暂不绘制趋势。</p>
+        <p class="empty">近60日融资杠杆密度历史样本不足，暂不绘制趋势。</p>
+        <p class="empty">近60日宽基代表（中证全指）历史样本不足，暂不绘制趋势。</p>
+      </div>
+      <h3>最近三周</h3><div class="margin-weeks"><div class="margin-week"><b>上上周</b><span><small>周末融资余额</small>数据不足</span><span><small>本周变化</small>-</span><span><small>平均融资交易强度</small>-</span><span><small>杠杆热度</small>未评分 · 数据不足</span><span><small>去杠杆压力</small>未评分 · 数据不足</span><span><small>状态</small>数据不足</span></div><div class="margin-week"><b>上周</b><span><small>周末融资余额</small>数据不足</span><span><small>本周变化</small>-</span><span><small>平均融资交易强度</small>-</span><span><small>杠杆热度</small>未评分 · 数据不足</span><span><small>去杠杆压力</small>未评分 · 数据不足</span><span><small>状态</small>数据不足</span></div><div class="margin-week"><b>本周</b><span><small>周末融资余额</small>数据不足</span><span><small>本周变化</small>-</span><span><small>平均融资交易强度</small>-</span><span><small>杠杆热度</small>未评分 · 数据不足</span><span><small>去杠杆压力</small>未评分 · 数据不足</span><span><small>状态</small>数据不足</span></div></div>
+      <h3>历史阶段同口径比较</h3><div class="table-scroll"><table class="margin-table"><thead><tr><th>阶段</th><th>余额峰值</th><th>峰值日</th><th>当前距峰值</th><th>杠杆密度峰值</th><th>交易强度峰值</th><th>20日最快扩张</th><th>峰后20日最大回撤</th><th>峰后60日最大回撤</th></tr></thead><tbody><tr><td colspan="9">历史样本不足，暂不比较。</td></tr></tbody></table></div>
+      <h3>走步法历史校准</h3><p class="empty">尚未生成同口径走步校准；不发布历史风险概率。</p>
+      <div class="margin-notes"><div><h3>政策与口径节点</h3><ul><li><b>2014-09-22 · 两融统计口径调整</b><span>交易总量开始包含调出标的证券名单后的存量余额。</span></li><li><b>2015-11-23 · 融资保证金比例调整</b><span>新开融资合约杠杆约束提高，前后增速需结合制度变化解释。</span></li><li><b>2024-07-11 · 转融券暂停及融券保证金调整</b><span>融券余额可比性下降，评分使用融资余额而非总两融余额。</span></li><li><b>2026-01-19 · 融资保证金比例调整</b><span>新开融资合约最低保证金比例变化，作为解释节点保留。</span></li></ul></div><div><h3>数据限制</h3><ul><li>沪深任一市场缺失时不发布A股汇总和评分</li></ul><p>低杠杆不代表上涨空间必然较大；高杠杆也不代表市场立即见顶。需要同时观察价格、盈利、成交和去杠杆压力。</p></div></div></article></section>
+<section class="grid"><article class="card span-6" data-section="three-week-industry"><h2>行业三周收益/资金热力图</h2><p class="muted">每格上方为周收益，下方为该自然交易周主力净流入；展示三周收益Top5、资金Top5与当前持仓相关行业的并集，最多15个。</p><p class="empty">逐日历史覆盖不足，无法形成三周矩阵。</p></article><article class="card span-6" data-section="three-week-concept"><h2>概念三周收益/资金热力图</h2><p class="muted">同样采用三周并集；缺少完整交易日的周保持空白，不用今日快照或基金热度补齐。</p><p class="empty">逐日历史覆盖不足，无法形成三周矩阵。</p></article></section>
+<section class="grid" data-section="weekly-conclusion"><article class="card span-12 summary"><h2>本周结论</h2><p>半导体设备等方向本周收益领先。</p><p>其中半导体设备获得资金持续性确认（半导体设备：持续流入：今日流入、5日流入、10日流入）。</p><p>对半导体设备未发现可验证的直接主题覆盖。</p><p>暂未识别出三只及以上基金共同暴露的重复主题。</p><p>证据不足，暂不生成替换建议；现阶段以观察和控制同质化为主。</p><small class="confidence-note">结论口径：只有正收益且资金持续流入的行业才视为已确认方向；其余仅作观察信号。</small></article></section>
+<section id="holdings" class="grid" data-section="holdings"><article class="card span-12"><h2>持仓本周表现</h2><p class="muted">按持仓金额计算组合占比。当前组合占比是本报告的分析口径，不代表券商账户实时仓位。近1年最大回撤表示过去一年从阶段高点到低点的最大跌幅，负值越大风险越高。</p><div class="holding-head"><span>基金与画像</span><span>当前组合占比</span><span>本周收益</span><span>近1月收益</span><span>近3月收益</span><span>近1年最大回撤</span><span>周度综合分</span><span>建议动作</span></div><div class="data-row holding-row" data-row="holding">
+              <div class="holding-name"><b>易方达中证海外中国互联网50ETF联接人民币A</b><small>006327 · 被动指数/ETF联接 · QDII、港股/海外科技、港股科技</small><small>画像 missing · 披露期 - · 规模 - · 换手 - · 无产品风险标记</small></div>
+              <span class="holding-field "><small>当前组合占比</small><b>15.00%</b></span>
+              <span class="holding-field positive"><small>本周收益</small><b>0.20%</b></span>
+              <span class="holding-field positive"><small>近1月收益</small><b>4.93%</b></span>
+              <span class="holding-field neutral"><small>近3月收益</small><b>-</b></span>
+              <span class="holding-field negative"><small>近1年最大回撤</small><b>0.00%</b></span>
+              <span class="holding-field "><small>周度综合分</small><b>51.67分</b></span>
+              <span class="holding-action"><small>建议动作</small><b class="badge">观察</b></span>
+              <small class="holding-reason">缺少与强势板块一致的充分证据 评分覆盖率 90.00%</small>
+            </div><div class="data-row holding-row" data-row="holding">
+              <div class="holding-name"><b>招商中证白酒指数(LOF)A</b><small>161725 · 被动指数/ETF联接 · 指数、消费、白酒</small><small>画像 missing · 披露期 - · 规模 - · 换手 - · 无产品风险标记</small></div>
+              <span class="holding-field "><small>当前组合占比</small><b>20.00%</b></span>
+              <span class="holding-field negative"><small>本周收益</small><b>-1.20%</b></span>
+              <span class="holding-field positive"><small>近1月收益</small><b>1.62%</b></span>
+              <span class="holding-field neutral"><small>近3月收益</small><b>-</b></span>
+              <span class="holding-field negative"><small>近1年最大回撤</small><b>-1.20%</b></span>
+              <span class="holding-field "><small>周度综合分</small><b>37.78分</b></span>
+              <span class="holding-action"><small>建议动作</small><b class="badge">替换候选</b></span>
+              <small class="holding-reason">有效周度综合分低于45，进入替换观察池 评分覆盖率 90.00%</small>
+            </div><div class="data-row holding-row" data-row="holding">
+              <div class="holding-name"><b>易方达消费行业股票</b><small>110022 · 主动基金 · 主动权益、消费</small><small>画像 missing · 披露期 - · 规模 - · 换手 - · 无产品风险标记</small></div>
+              <span class="holding-field "><small>当前组合占比</small><b>25.00%</b></span>
+              <span class="holding-field negative"><small>本周收益</small><b>-2.60%</b></span>
+              <span class="holding-field negative"><small>近1月收益</small><b>-1.64%</b></span>
+              <span class="holding-field neutral"><small>近3月收益</small><b>-</b></span>
+              <span class="holding-field negative"><small>近1年最大回撤</small><b>-2.60%</b></span>
+              <span class="holding-field "><small>周度综合分</small><b>26.67分</b></span>
+              <span class="holding-action"><small>建议动作</small><b class="badge">替换候选</b></span>
+              <small class="holding-reason">有效周度综合分低于45，进入替换观察池 评分覆盖率 90.00%</small>
+            </div><div class="data-row holding-row" data-row="holding">
+              <div class="holding-name"><b>华夏沪深300ETF联接A</b><small>000051 · 被动指数/ETF联接 · 大盘、宽基、核心</small><small>画像 missing · 披露期 - · 规模 - · 换手 - · 无产品风险标记</small></div>
+              <span class="holding-field "><small>当前组合占比</small><b>40.00%</b></span>
+              <span class="holding-field negative"><small>本周收益</small><b>-4.00%</b></span>
+              <span class="holding-field negative"><small>近1月收益</small><b>-4.86%</b></span>
+              <span class="holding-field neutral"><small>近3月收益</small><b>-</b></span>
+              <span class="holding-field negative"><small>近1年最大回撤</small><b>-4.96%</b></span>
+              <span class="holding-field "><small>周度综合分</small><b>15.56分</b></span>
+              <span class="holding-action"><small>建议动作</small><b class="badge">替换候选</b></span>
+              <small class="holding-reason">有效周度综合分低于45，进入替换观察池 评分覆盖率 90.00%</small>
+            </div></article></section>
+<section class="grid" data-section="style"><article class="card span-12"><h2>大盘与风格</h2><div class="style-row" data-row="style"><b>科创50</b><div class="track"><i class="positive" style="width:100.0%"></i></div><strong class="positive">4.50%</strong><small>周收益不可确认 · 无有效来源 · 最新 2026-07-17 · 正常</small></div><div class="style-row" data-row="style"><b>沪深300</b><div class="track"><i class="negative" style="width:27.8%"></i></div><strong class="negative">-1.25%</strong><small>周收益不可确认 · 无有效来源 · 最新 2026-07-17 · 正常</small></div></article></section>
+<section id="sectors" class="grid" data-section="sector-week"><article class="card span-6"><h2>板块Top10：行业近5个交易日收益</h2><p class="muted">这是截止报告日向前5个交易日的滚动观察；自然周收益请以三周行业矩阵为准。</p><div class="data-row sector-row" data-row="sector" data-return-basis="5日资金流排行涨跌幅">
+              <div class="sector-title"><b>半导体设备</b><small>科技/半导体 · 行业名称关键词映射 · 置信度 中</small></div>
+              <span><small>近5日收益</small><b class="positive">8.20%</b></span>
+              <span><small>单日主力净额</small><b class="positive">+12.00亿元</b></span>
+              <span><small>5日主力净额</small><b class="positive">+36.00亿元</b></span>
+              <span><small>10日主力净额</small><b class="positive">+58.00亿元</b></span>
+              <span><small>资金判断</small><b class="badge">持续流入</b></span>
+              <span><small>组合相关主题估算占比</small><b>0.00%</b></span>
+              <small class="sector-evidence">持续流入：今日流入、5日流入、10日流入 · 收益口径：5日资金流排行涨跌幅 · 资金口径：unavailable · 资金净额统一换算为人民币元，报告按亿元展示 · 截止 2026-07-17 · 缓存 0 天 · 全市场</small>
+            </div><div class="data-row sector-row" data-row="sector" data-return-basis="5日资金流排行涨跌幅">
+              <div class="sector-title"><b>通信设备</b><small>科技/通信 · 行业名称关键词映射 · 置信度 中</small></div>
+              <span><small>近5日收益</small><b class="negative">-3.10%</b></span>
+              <span><small>单日主力净额</small><b class="negative">-8.00亿元</b></span>
+              <span><small>5日主力净额</small><b class="negative">-20.00亿元</b></span>
+              <span><small>10日主力净额</small><b class="negative">-30.00亿元</b></span>
+              <span><small>资金判断</small><b class="badge">持续流出</b></span>
+              <span><small>组合相关主题估算占比</small><b>0.00%</b></span>
+              <small class="sector-evidence">持续流出：今日流出、5日流出、10日流出 · 收益口径：5日资金流排行涨跌幅 · 资金口径：unavailable · 资金净额统一换算为人民币元，报告按亿元展示 · 截止 2026-07-17 · 缓存 0 天 · 全市场</small>
+            </div></article><article class="card span-6"><h2>板块Top10：概念近5个交易日收益</h2><p class="muted">这是截止报告日向前5个交易日的滚动观察；自然周收益请以三周概念矩阵为准。</p><div class="data-row sector-row" data-row="sector" data-return-basis="5日资金流排行涨跌幅">
+              <div class="sector-title"><b>先进封装</b><small>科技/半导体/先进封装 · 行业名称精确映射 · 置信度 高</small></div>
+              <span><small>近5日收益</small><b class="positive">9.50%</b></span>
+              <span><small>单日主力净额</small><b class="positive">+8.00亿元</b></span>
+              <span><small>5日主力净额</small><b class="positive">+15.00亿元</b></span>
+              <span><small>10日主力净额</small><b class="negative">-2.00亿元</b></span>
+              <span><small>资金判断</small><b class="badge">持续流入</b></span>
+              <span><small>组合相关主题估算占比</small><b>0.00%</b></span>
+              <small class="sector-evidence">持续流入：今日流入、5日流入、10日流出 · 收益口径：5日资金流排行涨跌幅 · 资金口径：unavailable · 资金净额统一换算为人民币元，报告按亿元展示 · 截止 2026-07-17 · 缓存 0 天 · 全市场</small>
+            </div><div class="data-row sector-row" data-row="sector" data-return-basis="5日资金流排行涨跌幅">
+              <div class="sector-title"><b>光模块</b><small>科技/通信 · 行业名称关键词映射 · 置信度 中</small></div>
+              <span><small>近5日收益</small><b class="negative">-4.00%</b></span>
+              <span><small>单日主力净额</small><b class="negative">-5.00亿元</b></span>
+              <span><small>5日主力净额</small><b class="negative">-11.00亿元</b></span>
+              <span><small>10日主力净额</small><b class="negative">-18.00亿元</b></span>
+              <span><small>资金判断</small><b class="badge">持续流出</b></span>
+              <span><small>组合相关主题估算占比</small><b>0.00%</b></span>
+              <small class="sector-evidence">持续流出：今日流出、5日流出、10日流出 · 收益口径：5日资金流排行涨跌幅 · 资金口径：unavailable · 资金净额统一换算为人民币元，报告按亿元展示 · 截止 2026-07-17 · 缓存 0 天 · 全市场</small>
+            </div></article></section>
+<section class="grid" data-section="sector-today"><article class="card span-6"><h2>今日涨跌：行业（非周收益）</h2><div class="data-row sector-row" data-row="sector" data-return-basis="今日快照，不属于周收益">
+              <div class="sector-title"><b>半导体设备</b><small>科技/半导体 · 行业名称关键词映射 · 置信度 中</small></div>
+              <span><small>今日涨跌</small><b class="positive">2.10%</b></span>
+              <span><small>单日主力净额</small><b class="neutral">-</b></span>
+              <span><small>5日主力净额</small><b class="neutral">-</b></span>
+              <span><small>10日主力净额</small><b class="neutral">-</b></span>
+              <span><small>资金判断</small><b class="badge">仅单周期，暂不判断</b></span>
+              <span><small>组合相关主题估算占比</small><b>0.00%</b></span>
+              <small class="sector-evidence">无足够资金周期；缺少今日、5日、10日，无法判断资金持续性 · 收益口径：今日快照，不属于周收益 · 资金口径：unavailable · 资金净额统一换算为人民币元，报告按亿元展示 · 截止 2026-07-17 · 缓存 0 天 · 全市场</small>
+            </div><div class="data-row sector-row" data-row="sector" data-return-basis="今日快照，不属于周收益">
+              <div class="sector-title"><b>通信设备</b><small>科技/通信 · 行业名称关键词映射 · 置信度 中</small></div>
+              <span><small>今日涨跌</small><b class="negative">-1.20%</b></span>
+              <span><small>单日主力净额</small><b class="neutral">-</b></span>
+              <span><small>5日主力净额</small><b class="neutral">-</b></span>
+              <span><small>10日主力净额</small><b class="neutral">-</b></span>
+              <span><small>资金判断</small><b class="badge">仅单周期，暂不判断</b></span>
+              <span><small>组合相关主题估算占比</small><b>0.00%</b></span>
+              <small class="sector-evidence">无足够资金周期；缺少今日、5日、10日，无法判断资金持续性 · 收益口径：今日快照，不属于周收益 · 资金口径：unavailable · 资金净额统一换算为人民币元，报告按亿元展示 · 截止 2026-07-17 · 缓存 0 天 · 全市场</small>
+            </div></article><article class="card span-6"><h2>今日涨跌：概念（非周收益）</h2><p class="muted">- · 不参与周收益计算</p><div class="data-row sector-row" data-row="sector" data-return-basis="今日快照，不属于周收益">
+              <div class="sector-title"><b>先进封装</b><small>科技/半导体/先进封装 · 行业名称精确映射 · 置信度 高</small></div>
+              <span><small>今日涨跌</small><b class="positive">3.40%</b></span>
+              <span><small>单日主力净额</small><b class="neutral">-</b></span>
+              <span><small>5日主力净额</small><b class="neutral">-</b></span>
+              <span><small>10日主力净额</small><b class="neutral">-</b></span>
+              <span><small>资金判断</small><b class="badge">仅单周期，暂不判断</b></span>
+              <span><small>组合相关主题估算占比</small><b>0.00%</b></span>
+              <small class="sector-evidence">无足够资金周期；缺少今日、5日、10日，无法判断资金持续性 · 收益口径：今日快照，不属于周收益 · 资金口径：unavailable · 资金净额统一换算为人民币元，报告按亿元展示 · 截止 2026-07-17 · 缓存 0 天 · 全市场</small>
+            </div><div class="data-row sector-row" data-row="sector" data-return-basis="今日快照，不属于周收益">
+              <div class="sector-title"><b>光模块</b><small>科技/通信 · 行业名称关键词映射 · 置信度 中</small></div>
+              <span><small>今日涨跌</small><b class="negative">-2.00%</b></span>
+              <span><small>单日主力净额</small><b class="neutral">-</b></span>
+              <span><small>5日主力净额</small><b class="neutral">-</b></span>
+              <span><small>10日主力净额</small><b class="neutral">-</b></span>
+              <span><small>资金判断</small><b class="badge">仅单周期，暂不判断</b></span>
+              <span><small>组合相关主题估算占比</small><b>0.00%</b></span>
+              <small class="sector-evidence">无足够资金周期；缺少今日、5日、10日，无法判断资金持续性 · 收益口径：今日快照，不属于周收益 · 资金口径：unavailable · 资金净额统一换算为人民币元，报告按亿元展示 · 截止 2026-07-17 · 缓存 0 天 · 全市场</small>
+            </div></article></section>
+<section class="grid" data-section="sector-today-flow"><article class="card span-6"><h2>报告期后当日资金流入（，不参与上周结论）</h2><p class="empty">暂无可用数据，未使用代理数据补齐。</p></article><article class="card span-6"><h2>报告期后当日资金流出（，不参与上周结论）</h2><p class="empty">暂无可用数据，未使用代理数据补齐。</p></article></section>
+<section class="grid" data-section="flows"><article class="card span-6"><h2>报告期5日资金流入（截至 2026-07-17）</h2><div class="data-row sector-row" data-row="sector" data-return-basis="5日资金流排行涨跌幅">
+              <div class="sector-title"><b>半导体设备</b><small>科技/半导体 · 行业名称关键词映射 · 置信度 中</small></div>
+              <span><small>近5日收益</small><b class="positive">8.20%</b></span>
+              <span><small>单日主力净额</small><b class="positive">+12.00亿元</b></span>
+              <span><small>5日主力净额</small><b class="positive">+36.00亿元</b></span>
+              <span><small>10日主力净额</small><b class="positive">+58.00亿元</b></span>
+              <span><small>资金判断</small><b class="badge">持续流入</b></span>
+              <span><small>组合相关主题估算占比</small><b>0.00%</b></span>
+              <small class="sector-evidence">持续流入：今日流入、5日流入、10日流入 · 收益口径：5日资金流排行涨跌幅 · 资金口径：unavailable · 资金净额统一换算为人民币元，报告按亿元展示 · 截止 2026-07-17 · 缓存 0 天 · 全市场</small>
+            </div><div class="data-row sector-row" data-row="sector" data-return-basis="5日资金流排行涨跌幅">
+              <div class="sector-title"><b>先进封装</b><small>科技/半导体/先进封装 · 行业名称精确映射 · 置信度 高</small></div>
+              <span><small>近5日收益</small><b class="positive">9.50%</b></span>
+              <span><small>单日主力净额</small><b class="positive">+8.00亿元</b></span>
+              <span><small>5日主力净额</small><b class="positive">+15.00亿元</b></span>
+              <span><small>10日主力净额</small><b class="negative">-2.00亿元</b></span>
+              <span><small>资金判断</small><b class="badge">持续流入</b></span>
+              <span><small>组合相关主题估算占比</small><b>0.00%</b></span>
+              <small class="sector-evidence">持续流入：今日流入、5日流入、10日流出 · 收益口径：5日资金流排行涨跌幅 · 资金口径：unavailable · 资金净额统一换算为人民币元，报告按亿元展示 · 截止 2026-07-17 · 缓存 0 天 · 全市场</small>
+            </div></article><article class="card span-6"><h2>报告期5日资金流出（截至 2026-07-17）</h2><div class="data-row sector-row" data-row="sector" data-return-basis="5日资金流排行涨跌幅">
+              <div class="sector-title"><b>通信设备</b><small>科技/通信 · 行业名称关键词映射 · 置信度 中</small></div>
+              <span><small>近5日收益</small><b class="negative">-3.10%</b></span>
+              <span><small>单日主力净额</small><b class="negative">-8.00亿元</b></span>
+              <span><small>5日主力净额</small><b class="negative">-20.00亿元</b></span>
+              <span><small>10日主力净额</small><b class="negative">-30.00亿元</b></span>
+              <span><small>资金判断</small><b class="badge">持续流出</b></span>
+              <span><small>组合相关主题估算占比</small><b>0.00%</b></span>
+              <small class="sector-evidence">持续流出：今日流出、5日流出、10日流出 · 收益口径：5日资金流排行涨跌幅 · 资金口径：unavailable · 资金净额统一换算为人民币元，报告按亿元展示 · 截止 2026-07-17 · 缓存 0 天 · 全市场</small>
+            </div><div class="data-row sector-row" data-row="sector" data-return-basis="5日资金流排行涨跌幅">
+              <div class="sector-title"><b>光模块</b><small>科技/通信 · 行业名称关键词映射 · 置信度 中</small></div>
+              <span><small>近5日收益</small><b class="negative">-4.00%</b></span>
+              <span><small>单日主力净额</small><b class="negative">-5.00亿元</b></span>
+              <span><small>5日主力净额</small><b class="negative">-11.00亿元</b></span>
+              <span><small>10日主力净额</small><b class="negative">-18.00亿元</b></span>
+              <span><small>资金判断</small><b class="badge">持续流出</b></span>
+              <span><small>组合相关主题估算占比</small><b>0.00%</b></span>
+              <small class="sector-evidence">持续流出：今日流出、5日流出、10日流出 · 收益口径：5日资金流排行涨跌幅 · 资金口径：unavailable · 资金净额统一换算为人民币元，报告按亿元展示 · 截止 2026-07-17 · 缓存 0 天 · 全市场</small>
+            </div></article></section>
+<section class="grid" data-section="difference"><article class="card span-12"><h2>板块与持仓差异</h2><div class="difference"><div><b>已覆盖</b><p>未发现与本周领涨方向一致的可验证覆盖</p></div><div><b>未覆盖方向（非买入建议）</b><p>半导体设备/材料</p></div><div><b>重复/拥挤</b><p>暂未识别出三只及以上基金共同暴露的主题</p></div></div></article></section>
+<section class="grid" data-section="proxy"><article class="card span-5"><h2>基金主题热度代理</h2><div class="data-row proxy-row" data-row="proxy"><b>半导体设备/材料</b><strong>7.20%</strong><span>样本 1</span><small>近1周基金排行名称主题代理，非板块收益</small></div></article><article class="card span-7"><h2>近1周基金排行</h2><div class="data-row rank-row" data-row="fund-rank"><span>#1</span><div><b>广发半导体设备ETF联接A</b><small>020639 · 被动指数/ETF联接 · 半导体设备/材料</small><small>披露期 - · 规模 - · 换手 - · 无产品风险标记</small></div><strong class="positive">7.20%</strong><span>1月 24.00%</span></div><div class="data-row rank-row" data-row="fund-rank"><span>#2</span><div><b>东方人工智能主题混合A</b><small>005844 · 主动基金 · 主题待确认</small><small>披露期 - · 规模 - · 换手 - · 无产品风险标记</small></div><strong class="positive">5.80%</strong><span>1月 18.00%</span></div></article></section>
+<section id="etf-quality" class="grid" data-section="etf"><article class="card span-12"><h2>ETF交易质量</h2><div class="etf-grid"><article class="etf-card ok" data-row="etf" data-return-basis="不可确认">
+              <header><div><b>半导体设备ETF国泰</b><small>159516 · 深股通</small></div><strong>未评分</strong></header>
+              <div class="quote"><b>不可确认</b><span>报告截止日 -</span></div>
+              <h3>报告截止日</h3><dl><div><dt>本周 / 近1月</dt><dd>- / -</dd></div><div><dt>收盘溢价</dt><dd>0.20%</dd></div><div><dt>溢价口径</dt><dd>同日公布折价率反算</dd></div><div><dt>成交额</dt><dd>80.00亿</dd></div><div><dt>收益口径</dt><dd>不可确认 · 置信度低</dd></div></dl>
+              <h3>当前交易快照</h3><dl><div><dt>价格 / IOPV</dt><dd>1.002 / 1.0</dd></div><div><dt>实时溢价</dt><dd>0.20%</dd></div><div><dt>时间</dt><dd>2026-07-17 · 需重新复核</dd></div></dl>
+              <p>收盘交易质量门槛通过 · 执行前需重新核对实时溢价</p>
+            </article><article class="etf-card ok" data-row="etf" data-return-basis="不可确认">
+              <header><div><b>半导体设备ETF易方达</b><small>159558 · 深股通</small></div><strong>未评分</strong></header>
+              <div class="quote"><b>不可确认</b><span>报告截止日 -</span></div>
+              <h3>报告截止日</h3><dl><div><dt>本周 / 近1月</dt><dd>- / -</dd></div><div><dt>收盘溢价</dt><dd>0.80%</dd></div><div><dt>溢价口径</dt><dd>同日公布折价率反算</dd></div><div><dt>成交额</dt><dd>30.00亿</dd></div><div><dt>收益口径</dt><dd>不可确认 · 置信度低</dd></div></dl>
+              <h3>当前交易快照</h3><dl><div><dt>价格 / IOPV</dt><dd>1.008 / 1.0</dd></div><div><dt>实时溢价</dt><dd>0.80%</dd></div><div><dt>时间</dt><dd>2026-07-17 · 需重新复核</dd></div></dl>
+              <p>收盘交易质量门槛通过 · 执行前需重新核对实时溢价</p>
+            </article><article class="etf-card warn" data-row="etf" data-return-basis="不可确认">
+              <header><div><b>半导体设备ETF华夏</b><small>562590 · 沪股通</small></div><strong>未评分</strong></header>
+              <div class="quote"><b>不可确认</b><span>报告截止日 -</span></div>
+              <h3>报告截止日</h3><dl><div><dt>本周 / 近1月</dt><dd>- / -</dd></div><div><dt>收盘溢价</dt><dd>1.50%</dd></div><div><dt>溢价口径</dt><dd>同日公布折价率反算</dd></div><div><dt>成交额</dt><dd>15.00亿</dd></div><div><dt>收益口径</dt><dd>不可确认 · 置信度低</dd></div></dl>
+              <h3>当前交易快照</h3><dl><div><dt>价格 / IOPV</dt><dd>1.015 / 1.0</dd></div><div><dt>实时溢价</dt><dd>1.50%</dd></div><div><dt>时间</dt><dd>2026-07-17 · 需重新复核</dd></div></dl>
+              <p>溢价偏高 · 执行前需重新核对实时溢价</p>
+            </article><article class="etf-card risk" data-row="etf" data-return-basis="不可确认">
+              <header><div><b>半导体设备ETF广发</b><small>560780 · 沪股通</small></div><strong>未评分</strong></header>
+              <div class="quote"><b>不可确认</b><span>报告截止日 -</span></div>
+              <h3>报告截止日</h3><dl><div><dt>本周 / 近1月</dt><dd>- / -</dd></div><div><dt>收盘溢价</dt><dd>3.00%</dd></div><div><dt>溢价口径</dt><dd>同日公布折价率反算</dd></div><div><dt>成交额</dt><dd>21.00亿</dd></div><div><dt>收益口径</dt><dd>不可确认 · 置信度低</dd></div></dl>
+              <h3>当前交易快照</h3><dl><div><dt>价格 / IOPV</dt><dd>1.03 / 1.0</dd></div><div><dt>实时溢价</dt><dd>3.00%</dd></div><div><dt>时间</dt><dd>2026-07-17 · 需重新复核</dd></div></dl>
+              <p>追高风险 · 执行前需重新核对实时溢价</p>
+            </article></div></article></section>
+<section id="decision" class="grid" data-section="replacement"><article class="card span-12"><h2>Top3替换观察</h2><div class="empty decision-gap"><b>证据不足，暂不生成或补足替换建议</b><p>仅有 0 组候选满足收益、分差、板块证据、流动性和溢价门槛，未补齐伪建议。</p><ul><li>没有候选同时通过收益、板块证据、产品质量和交易质量门槛</li><li>1只候选ETF溢价达到或超过2%，只能观察，不能给出分批买入建议</li><li>仅有0组候选满足至少5分分差及全部风险门槛</li></ul></div></article></section>
+<section class="grid" data-section="cache-audit"><article class="card span-12"><h2>增量缓存</h2><p>数据库：work/cache/fund-rotation/cache.sqlite3</p><p class="muted">历史逻辑数据集 0 · 命中 0 · 命中率 0.00%；实时行情不计入该分母。底层调用命中率 0.00%。历史时序、实时快照与分析模型版本分离保存。</p></article></section>
+<section id="data-quality" class="grid" data-section="quality"><article class="card span-12"><h2>未解决的必需数据</h2><ul><li>mock data enabled</li></ul><h3>可选实时数据</h3><p class="empty">暂无接口状态；可能来自旧缓存结构。</p><h3>数据来源路由</h3><p class="muted">策略：akshare-only；本次没有代理数据集参与报告结论</p><h3>分析说明</h3><ul><li>两融模块缺少同日市场规模、成交额或足够历史样本；保留可确认的绝对余额并降级展示，不影响基金评分和调仓建议。</li></ul><h3>已自动恢复的数据源</h3><p class="empty">暂无接口状态；可能来自旧缓存结构。</p><h3>逻辑数据集状态</h3><p class="empty">暂无接口状态；可能来自旧缓存结构。</p><details><summary>查看全部 0 条接口审计记录</summary><p class="empty">暂无接口状态；可能来自旧缓存结构。</p></details><p class="muted">本报告仅用于基金级别复盘与组合分析，不构成自动交易指令或收益承诺。</p></article></section>
+<footer class="muted">报告格式 weekly-visual-v2 · 数据修订 2.8 · 持仓快照 1588f591badf · 证据 a4ceeb19fbde<br>本报告仅用于基金级别复盘与组合分析，不构成自动交易指令或收益承诺。</footer></main></body></html>
