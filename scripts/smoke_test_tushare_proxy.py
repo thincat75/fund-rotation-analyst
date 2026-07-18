@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Isolated health and permission check for the fixed third-party Tushare proxy."""
+"""Isolated health and permission check for official Tushare Pro or an approved proxy."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from data_access import df_to_records, load_json, parse_number, write_json
-from tushare_proxy import DEFAULT_HTTP_URL, PROVIDER, TRANSPORT, create_pro
+from tushare_proxy import DEFAULT_HTTP_URL, create_pro
 
 
 CRITICAL_DATASETS = {
@@ -87,10 +87,10 @@ def _resolve_fund(pro: Any, code: str) -> str:
     raise ValueError(f"fund_basic did not resolve code {code}")
 
 
-def _execute(token: str, endpoint: str, spec: dict[str, Any]) -> dict[str, Any]:
+def _execute(token: str, endpoint: str | None, provider_mode: str, spec: dict[str, Any]) -> dict[str, Any]:
     started = time.monotonic()
     try:
-        pro, ts, metadata = create_pro(token, endpoint)
+        pro, ts, metadata = create_pro(token, endpoint, provider_mode=provider_mode)
         api = spec["api"]
         kwargs = dict(spec.get("kwargs") or {})
         if api == "pro_bar":
@@ -104,7 +104,7 @@ def _execute(token: str, endpoint: str, spec: dict[str, Any]) -> dict[str, Any]:
         else:
             function = getattr(pro, api, None)
             if function is None:
-                raise AttributeError(f"proxy SDK does not expose {api}")
+                raise AttributeError(f"Tushare SDK does not expose {api}")
             value = function(**kwargs)
         records = df_to_records(value)
         fields = sorted({str(key) for row in records[:20] for key in row})
@@ -178,8 +178,8 @@ def _execute(token: str, endpoint: str, spec: dict[str, Any]) -> dict[str, Any]:
             "flow_max_abs_net_amount": flow_max_abs_net_amount,
             "flow_positive_count": flow_positive_count,
             "flow_negative_count": flow_negative_count,
-            "provider": PROVIDER,
-            "transport": TRANSPORT,
+            "provider": metadata["provider"],
+            "transport": metadata["transport"],
         }
     except Exception as exc:
         safe_reason = f"{type(exc).__name__}: {str(exc)[:300]}".replace(token, "[REDACTED]")
@@ -190,19 +190,19 @@ def _execute(token: str, endpoint: str, spec: dict[str, Any]) -> dict[str, Any]:
             "row_count": 0,
             "fields": [],
             "latest_date": None,
-            "provider": PROVIDER,
-            "transport": TRANSPORT,
+            "provider": "Tushare数据源",
+            "transport": "unknown",
         }
 
 
-def _worker(queue: Any, token: str, endpoint: str, spec: dict[str, Any]) -> None:
-    queue.put(_execute(token, endpoint, spec))
+def _worker(queue: Any, token: str, endpoint: str | None, provider_mode: str, spec: dict[str, Any]) -> None:
+    queue.put(_execute(token, endpoint, provider_mode, spec))
 
 
-def isolated_call(token: str, endpoint: str, spec: dict[str, Any], timeout: float) -> dict[str, Any]:
+def isolated_call(token: str, endpoint: str | None, provider_mode: str, spec: dict[str, Any], timeout: float) -> dict[str, Any]:
     context = mp.get_context("spawn")
     queue = context.Queue()
-    process = context.Process(target=_worker, args=(queue, token, endpoint, spec))
+    process = context.Process(target=_worker, args=(queue, token, endpoint, provider_mode, spec))
     process.start()
     process.join(timeout)
     if process.is_alive():
@@ -306,7 +306,8 @@ def main() -> None:
     parser.add_argument("--group", choices=["sample", "foundation", "optional", "all"], default="all")
     parser.add_argument("--dataset", action="append", help="run only selected dataset names")
     parser.add_argument("--base-health", type=Path, help="merge selected retests into an existing health file")
-    parser.add_argument("--endpoint", default=os.environ.get("TUSHARE_HTTP_URL", DEFAULT_HTTP_URL), help=argparse.SUPPRESS)
+    parser.add_argument("--provider", choices=["auto", "official", "third-party-proxy"], default=os.environ.get("TUSHARE_PROVIDER", "auto"))
+    parser.add_argument("--endpoint", default=os.environ.get("TUSHARE_HTTP_URL"), help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.rounds < 1:
         parser.error("--rounds must be positive")
@@ -314,7 +315,11 @@ def main() -> None:
     if not token:
         parser.error("TUSHARE_TOKEN is required")
 
-    _, _, metadata = create_pro(token, args.endpoint)
+    provider_mode = args.provider
+    if provider_mode == "auto":
+        provider_mode = "third-party-proxy" if args.endpoint else "official"
+    endpoint = (args.endpoint or DEFAULT_HTTP_URL) if provider_mode == "third-party-proxy" else None
+    _, _, metadata = create_pro(token, endpoint, provider_mode=provider_mode)
     datasets = {}
     specs = _specs(args.group, dt.date.today())
     if args.dataset:
@@ -335,7 +340,7 @@ def main() -> None:
                 print(f"FAIL {spec['dataset']:<22} 0/{args.rounds}")
                 continue
             spec["kwargs"]["ts_code"] = resolved_fund_code
-        attempts = [isolated_call(token, args.endpoint, spec, args.timeout) for _ in range(args.rounds)]
+        attempts = [isolated_call(token, endpoint, provider_mode, spec, args.timeout) for _ in range(args.rounds)]
         datasets[spec["dataset"]] = summarize(spec["dataset"], spec, attempts, args.rounds)
         if spec["dataset"] == "fund_basic":
             resolved_fund_code = next((row.get("resolved_ts_code") for row in attempts if row.get("resolved_ts_code")), None)
@@ -350,7 +355,7 @@ def main() -> None:
                         },
                         "required": ["ts_code", "name"],
                     }
-                    result = isolated_call(token, args.endpoint, resolution_spec, args.timeout)
+                    result = isolated_call(token, endpoint, provider_mode, resolution_spec, args.timeout)
                     resolution_audit.append({
                         "page": page, "status": result.get("status"), "row_count": result.get("row_count"),
                         "latency_ms": result.get("latency_ms"), "resolved": bool(result.get("resolved_ts_code")),
@@ -377,8 +382,9 @@ def main() -> None:
     payload = {
         "schema_version": 1,
         "created_at": dt.datetime.now().isoformat(timespec="seconds"),
-        "provider": PROVIDER,
-        "transport": TRANSPORT,
+        "provider": metadata["provider"],
+        "provider_mode": metadata["provider_mode"],
+        "transport": metadata["transport"],
         "endpoint_fingerprint": metadata["endpoint_fingerprint"],
         "token_fingerprint": metadata["token_fingerprint"],
         "sdk_version": metadata["sdk_version"],
@@ -386,7 +392,11 @@ def main() -> None:
         "rounds": args.rounds,
         "hard_timeout_seconds": args.timeout,
         "base_health": str(args.base_health) if args.base_health else None,
-        "credential_risk": "当前凭据曾在聊天中暴露；自动任务启用前必须更换。",
+        "credential_risk": (
+            "第三方代理凭据与官方Tushare Pro token不是同一凭据；不要把官方token发送给代理。"
+            if provider_mode == "third-party-proxy" else
+            "官方Tushare Pro token仅通过官方SDK使用并必须保密。"
+        ),
         "operational_ready": bool(foundation and all(row["operational_eligible"] for row in foundation)),
         "foundation_ready": bool(foundation and all(row["promotion_eligible"] for row in foundation)),
         "datasets": datasets,

@@ -12,6 +12,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from cache_store import CacheStore, stable_hash  # noqa: E402
 from collect_weekly_data import (  # noqa: E402
+    LEGACY_THIRD_PARTY_PROVIDER,
     TUSHARE_PROVIDER,
     apply_cached_sector_flow_overlay,
     chunked_tushare_flow,
@@ -67,6 +68,17 @@ class CacheStoreTests(unittest.TestCase):
                 store.upsert_series(TUSHARE_PROVIDER, "industry_flow_daily", "881001.TI", [{
                     "trade_date": day.strftime("%Y%m%d"), "ts_code": "881001.TI",
                     "industry": "半导体", "net_amount": index + 1, "pct_change": 1,
+                }])
+            rows = complete_cached_sector_flow(store, "industry", dates)
+            self.assertEqual(len(rows), 5)
+
+    def test_legacy_proxy_cache_remains_readable_after_official_source_upgrade(self) -> None:
+        with tempfile.TemporaryDirectory() as directory, CacheStore(directory) as store:
+            dates = [dt.date(2026, 7, day) for day in (6, 7, 8, 9, 10)]
+            for day in dates:
+                store.upsert_series(LEGACY_THIRD_PARTY_PROVIDER, "industry_flow_daily", "881001.TI", [{
+                    "trade_date": day.strftime("%Y%m%d"), "ts_code": "881001.TI",
+                    "industry": "半导体", "net_amount": 1, "pct_change": 0.5,
                 }])
             rows = complete_cached_sector_flow(store, "industry", dates)
             self.assertEqual(len(rows), 5)

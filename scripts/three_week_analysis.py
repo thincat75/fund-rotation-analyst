@@ -505,7 +505,7 @@ def build_evidence(periods: list[dict[str, Any]], portfolio: dict[str, Any], sty
             prefix = row["kind"]
             for metric, unit in (("return", "%"), ("weekly_net_flow", "元")):
                 evidence_id = f"{prefix}:{row['entity_id']}:{pid}:{metric}"
-                evidence[evidence_id] = {"id": evidence_id, "entity_id": row["entity_id"], "entity_name": row["name"], "period": pid, "metric": metric, "value": values.get(metric), "unit": unit, "source": "第三方 Tushare 代理", "source_date": values.get("latest_date")}
+                evidence[evidence_id] = {"id": evidence_id, "entity_id": row["entity_id"], "entity_name": row["name"], "period": pid, "metric": metric, "value": values.get(metric), "unit": unit, "source": "健康检查与交叉验证通过的Tushare数据源", "source_date": values.get("latest_date")}
     return {"prompt_version": "three-week-v1", "periods": periods, "style_regime": style_regime, "evidence": evidence, "evidence_hash": stable_hash(evidence)}
 
 

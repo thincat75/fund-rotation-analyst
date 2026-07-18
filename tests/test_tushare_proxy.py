@@ -49,16 +49,48 @@ class FakeTs:
 class TushareInitializationTests(unittest.TestCase):
     def test_factory_uses_required_private_endpoint_assignment(self) -> None:
         ts = FakeTs()
-        pro, module, metadata = proxy.create_pro("secret", proxy.DEFAULT_HTTP_URL, ts_module=ts)
+        pro, module, metadata = proxy.create_pro(
+            "secret", proxy.DEFAULT_HTTP_URL, provider_mode="third-party-proxy", ts_module=ts
+        )
         self.assertIs(module, ts)
         self.assertEqual(ts.token, "secret")
         self.assertEqual(pro._DataApi__http_url, proxy.DEFAULT_HTTP_URL)
         self.assertNotIn("secret", str(metadata))
-        self.assertEqual(metadata["provider"], "第三方 Tushare 代理")
+        self.assertEqual(metadata["provider"], "第三方 Tushare 兼容代理")
+
+    def test_official_factory_does_not_override_sdk_endpoint(self) -> None:
+        ts = FakeTs()
+        pro, module, metadata = proxy.create_pro("official-secret", provider_mode="official", ts_module=ts)
+        self.assertIs(module, ts)
+        self.assertEqual(ts.token, "official-secret")
+        self.assertFalse(hasattr(pro, "_DataApi__http_url"))
+        self.assertEqual(metadata["provider"], "Tushare Pro 官方")
+        self.assertEqual(metadata["provider_mode"], "official")
+        self.assertNotIn("official-secret", str(metadata))
+
+    def test_official_factory_rejects_endpoint_override(self) -> None:
+        with self.assertRaises(proxy.ProxyConfigurationError):
+            proxy.create_pro(
+                "secret", proxy.DEFAULT_HTTP_URL, provider_mode="official", ts_module=FakeTs()
+            )
+
+    def test_health_promotion_is_bound_to_source_mode_and_endpoint(self) -> None:
+        official = proxy.create_pro("official", provider_mode="official", ts_module=FakeTs())[2]
+        third_party = proxy.create_pro(
+            "proxy", proxy.DEFAULT_HTTP_URL, provider_mode="third-party-proxy", ts_module=FakeTs()
+        )[2]
+        official_health = {
+            "provider_mode": "official",
+            "endpoint_fingerprint": official["endpoint_fingerprint"],
+        }
+        self.assertTrue(proxy.health_source_matches(official_health, official))
+        self.assertFalse(proxy.health_source_matches(official_health, third_party))
 
     def test_unapproved_endpoint_is_rejected(self) -> None:
         with self.assertRaises(proxy.ProxyConfigurationError):
-            proxy.create_pro("secret", "https://example.com", ts_module=FakeTs())
+            proxy.create_pro(
+                "secret", "https://example.com", provider_mode="third-party-proxy", ts_module=FakeTs()
+            )
 
     def test_pro_bar_explicitly_receives_api(self) -> None:
         ts = FakeTs()

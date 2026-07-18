@@ -33,12 +33,16 @@ from margin_leverage import (
     percentile_rank,
 )
 from tushare_proxy import (
+    LEGACY_THIRD_PARTY_PROVIDER,
+    OFFICIAL_PROVIDER,
     PROVIDER as TUSHARE_PROVIDER,
+    THIRD_PARTY_PROVIDER,
     TushareProxyClient,
     adjusted_etf_history,
     aggregate_sector_flow,
     collect_fund_master,
     create_pro,
+    health_source_matches,
     load_health,
     market_ts_code,
     normalize_fund_nav,
@@ -82,7 +86,7 @@ def import_akshare() -> tuple[Any | None, str | None]:
 
 
 def create_tushare_client(args: argparse.Namespace, cache_root: Path, context: dict[str, Any]) -> tuple[TushareProxyClient | None, dict[str, Any]]:
-    """Create an optional proxy client without making missing credentials a report defect."""
+    """Create an optional official/proxy client without making missing credentials a report defect."""
     health = load_health(Path(args.tushare_health))
     if args.provider_policy == "akshare-only":
         return None, health
@@ -92,6 +96,10 @@ def create_tushare_client(args: argparse.Namespace, cache_root: Path, context: d
         health = dict(health)
         health["runtime_unavailable"] = f"{type(exc).__name__}: {exc}"
         return None, health
+    if health and not health_source_matches(health, metadata):
+        health = dict(health)
+        health["datasets"] = {}
+        health["source_mismatch"] = "健康文件来自不同的Tushare来源；请重新运行健康检查和shadow。"
     return (
         TushareProxyClient(
             pro,
@@ -125,12 +133,20 @@ def health_crosscheck_for(health: dict[str, Any], specific: str, generic: str) -
     return str(row.get("crosscheck_status") or "not_recorded")
 
 
-def normalized_tushare_status(dataset: str, statuses: list[dict[str, Any]], basis: str, source_date: str | None = None) -> dict[str, Any]:
+def normalized_tushare_status(
+    dataset: str,
+    statuses: list[dict[str, Any]],
+    basis: str,
+    source_date: str | None = None,
+    *,
+    provider: str = TUSHARE_PROVIDER,
+    transport: str = "http",
+) -> dict[str, Any]:
     logical = dataset_status(dataset, statuses, basis=basis, source_date=source_date)
     logical.update(
         {
-            "provider": TUSHARE_PROVIDER,
-            "transport": "http",
+            "provider": provider,
+            "transport": transport,
             "endpoint_fingerprint": next((row.get("endpoint_fingerprint") for row in statuses if row.get("endpoint_fingerprint")), None),
             "crosscheck_status": "pending_shadow_crosscheck",
             "promotion_eligible": logical["status"] in {"ok", "fallback_used"},
@@ -144,18 +160,22 @@ def replace_dataset_status(datasets: list[dict[str, Any]], replacement: dict[str
     datasets.append(replacement)
 
 
-def normalize_tushare_index(rows: list[dict[str, Any]], cutoff: str) -> list[dict[str, Any]]:
+def normalize_tushare_index(
+    rows: list[dict[str, Any]], cutoff: str, *, provider: str = TUSHARE_PROVIDER
+) -> list[dict[str, Any]]:
     output = []
     for row in rows:
         day = str(row.get("trade_date") or "").replace("-", "")
         close = parse_number(row.get("close"))
         if not day or close is None or day > cutoff.replace("-", ""):
             continue
-        output.append({"日期": f"{day[:4]}-{day[4:6]}-{day[6:8]}", "收盘": close, "provider": TUSHARE_PROVIDER})
+        output.append({"日期": f"{day[:4]}-{day[4:6]}-{day[6:8]}", "收盘": close, "provider": provider})
     return sorted(output, key=lambda row: row["日期"])
 
 
-def normalized_tushare_holdings(rows: list[dict[str, Any]], stock_names: dict[str, str]) -> list[dict[str, Any]]:
+def normalized_tushare_holdings(
+    rows: list[dict[str, Any]], stock_names: dict[str, str], *, provider: str = TUSHARE_PROVIDER
+) -> list[dict[str, Any]]:
     output = []
     for row in rows:
         symbol = str(row.get("symbol") or row.get("stk_code") or "")
@@ -168,7 +188,7 @@ def normalized_tushare_holdings(rows: list[dict[str, Any]], stock_names: dict[st
                 "持股市值": parse_number(row.get("mkv")),
                 "报告期": row.get("end_date"),
                 "公告日期": row.get("ann_date"),
-                "provider": TUSHARE_PROVIDER,
+                "provider": provider,
             }
         )
     return output
@@ -394,6 +414,8 @@ def collect_margin_leverage_data(
     refresh_datasets: list[str],
 ) -> dict[str, Any]:
     """Collect沪深 aggregate margin and same-day market statistics."""
+    proxy_metadata = getattr(proxy_client, "metadata", {}) if proxy_client else {}
+    tushare_provider = str(proxy_metadata.get("provider") or TUSHARE_PROVIDER)
     if margin_mode == "off":
         datasets.append({
             "dataset": "margin_leverage", "requirement": "optional", "impact": "display",
@@ -422,7 +444,7 @@ def collect_margin_leverage_data(
             if len(cached) >= MIN_PERCENTILE_SAMPLE and dataset not in refresh and "margin_summary" not in refresh:
                 request_start = (dt.date.fromisoformat(cached[-1]["trade_date"]) + dt.timedelta(days=1)).strftime("%Y%m%d")
             raw_proxy = proxy_client.call(dataset, "margin", {"exchange_id": exchange, "start_date": request_start, "end_date": end_key})
-            proxy_rows = normalize_margin_rows(raw_proxy, exchange, TUSHARE_PROVIDER, cutoff=cutoff)
+            proxy_rows = normalize_margin_rows(raw_proxy, exchange, tushare_provider, cutoff=cutoff)
             proxy_shadow[dataset] = proxy_rows
             attempts.extend(proxy_client.statuses[before:])
             if policy == "auto" and proxy_rows:
@@ -461,7 +483,7 @@ def collect_margin_leverage_data(
         if bse_cached:
             request_start = (dt.date.fromisoformat(bse_cached[-1]["trade_date"]) + dt.timedelta(days=1)).strftime("%Y%m%d")
         raw_bse = proxy_client.call("margin_summary:BSE", "margin", {"exchange_id": "BSE", "start_date": request_start, "end_date": end_key})
-        new_rows = normalize_margin_rows(raw_bse, "BSE", TUSHARE_PROVIDER, cutoff=cutoff)
+        new_rows = normalize_margin_rows(raw_bse, "BSE", tushare_provider, cutoff=cutoff)
         merged = {row["trade_date"]: row for row in bse_cached}
         merged.update({row["trade_date"]: row for row in new_rows})
         bse_rows = [merged[day] for day in sorted(merged)]
@@ -500,7 +522,7 @@ def collect_margin_leverage_data(
                 dataset, "daily_info",
                 {"ts_code": ts_code, "exchange": ts_exchange, "start_date": request_start, "end_date": end_key},
             )
-            proxy_rows = normalize_daily_info_rows(raw_proxy, exchange, TUSHARE_PROVIDER, cutoff=cutoff)
+            proxy_rows = normalize_daily_info_rows(raw_proxy, exchange, tushare_provider, cutoff=cutoff)
             proxy_shadow[dataset] = proxy_rows
             attempts.extend(proxy_client.statuses[before:])
             if policy == "auto" and proxy_rows:
@@ -1268,26 +1290,40 @@ def persist_payload_to_cache(store: CacheStore, payload: dict[str, Any]) -> dict
 
 
 def complete_cached_sector_flow(
-    store: CacheStore | None, kind: str, flow_dates: list[dt.date] | None,
+    store: CacheStore | None,
+    kind: str,
+    flow_dates: list[dt.date] | None,
+    providers: tuple[str, ...] = (
+        OFFICIAL_PROVIDER,
+        THIRD_PARTY_PROVIDER,
+        LEGACY_THIRD_PARTY_PROVIDER,
+    ),
 ) -> list[dict[str, Any]]:
-    """Return a frozen proxy flow range only when every requested trading day is present."""
+    """Return a frozen Tushare flow range only when every requested trading day is present."""
     if not store or not flow_dates:
         return []
     dataset = f"{kind}_flow_daily"
-    rows = [
-        row
-        for symbol in store.list_symbols(dataset, provider=TUSHARE_PROVIDER)
-        for row in store.get_series(
-            dataset, symbol, provider=TUSHARE_PROVIDER,
-            start_date=flow_dates[0].isoformat(), end_date=flow_dates[-1].isoformat(),
-        )
-    ]
     expected = {day.isoformat() for day in flow_dates}
-    present = {
-        day.isoformat() for row in rows
-        if (day := parse_day(row.get("trade_date"))) is not None
-    }
-    return rows if expected.issubset(present) else []
+    for provider in providers:
+        rows = [
+            row
+            for symbol in store.list_symbols(dataset, provider=provider)
+            for row in store.get_series(
+                dataset,
+                symbol,
+                provider=provider,
+                start_date=flow_dates[0].isoformat(),
+                end_date=flow_dates[-1].isoformat(),
+            )
+        ]
+        present = {
+            day.isoformat()
+            for row in rows
+            if (day := parse_day(row.get("trade_date"))) is not None
+        }
+        if expected.issubset(present):
+            return rows
+    return []
 
 
 def apply_cached_sector_flow_overlay(
@@ -1312,7 +1348,13 @@ def apply_cached_sector_flow_overlay(
         if not rows:
             continue
         period_rows = {
-            period: aggregate_sector_flow(rows, period=period, end_date=week["end_date"], sector_type=sector_type)
+            period: aggregate_sector_flow(
+                rows,
+                period=period,
+                end_date=week["end_date"],
+                sector_type=sector_type,
+                provider="本地增量缓存",
+            )
             for period in (1, 5, 10)
         }
         if not period_rows[5]:
@@ -1395,9 +1437,15 @@ def apply_tushare_overlay(
     flow_dates: list[dt.date] | None = None,
     refresh_datasets: set[str] | None = None,
 ) -> dict[str, Any]:
-    """Collect proxy evidence and apply only health-promoted datasets in auto mode."""
+    """Collect Tushare evidence and apply only health-promoted datasets in auto mode."""
     week = payload["week"]
     holdings = payload["holdings"]
+    provider = str(client.metadata.get("provider") or TUSHARE_PROVIDER)
+    transport = str(client.metadata.get("transport") or "unknown")
+    cache_providers = (
+        (provider, LEGACY_THIRD_PARTY_PROVIDER)
+        if provider == THIRD_PARTY_PROVIDER else (provider,)
+    )
     start_long = (parse_day(week["end_date"]) - dt.timedelta(days=390)).strftime("%Y%m%d")
     end = week["end_date"].replace("-", "")
     shadow: dict[str, Any] = {}
@@ -1427,12 +1475,15 @@ def apply_tushare_overlay(
                 {"ts_code": ts_code, "start_date": start_long, "end_date": end} if ts_code else {"ts_code": f"UNRESOLVED:{code}"},
             ) if ts_code else []
             normalized = normalize_fund_nav(rows, week["end_date"])
-            status = normalized_tushare_status(f"fund_nav:{code}", client.statuses[status_start:], "adj_nav优先，其次accum_nav", week["end_date"])
+            status = normalized_tushare_status(
+                f"fund_nav:{code}", client.statuses[status_start:], "adj_nav优先，其次accum_nav",
+                week["end_date"], provider=provider, transport=transport,
+            )
             status["promotion_eligible"] = bool(normalized and status["promotion_eligible"])
             shadow[f"fund_nav:{code}"] = normalized
             if policy == "auto" and normalized:
                 payload["funds"].setdefault(code, {})["nav"] = normalized
-                payload["funds"][code].update({"provider": TUSHARE_PROVIDER, "nav_basis": "adj_nav_then_accum_nav"})
+                payload["funds"][code].update({"provider": provider, "nav_basis": "adj_nav_then_accum_nav"})
                 status["crosscheck_status"] = health_crosscheck_for(health, f"fund_nav:{code}", "fund_nav")
                 replace_dataset_status(datasets, status)
                 used_datasets.append(f"fund_nav:{code}")
@@ -1449,14 +1500,17 @@ def apply_tushare_overlay(
             ts_code = resolve_fund_ts_code(fund_basic_rows, code)
             raw = client.call(f"fund_profile:{code}", "fund_portfolio", {"ts_code": ts_code}) if ts_code else []
             selected = normalize_fund_portfolio(raw, week["end_date"])
-            normalized = normalized_tushare_holdings(selected, stock_names)
-            status = normalized_tushare_status(f"fund_profile:{code}", client.statuses[status_start:], "最新已公告季度持仓", week["end_date"])
+            normalized = normalized_tushare_holdings(selected, stock_names, provider=provider)
+            status = normalized_tushare_status(
+                f"fund_profile:{code}", client.statuses[status_start:], "最新已公告季度持仓",
+                week["end_date"], provider=provider, transport=transport,
+            )
             status["promotion_eligible"] = bool(normalized and status["promotion_eligible"])
             shadow[f"fund_portfolio:{code}"] = normalized
             if policy == "auto" and normalized:
                 existing = dict((payload.get("full_details") or {}).get(code) or {})
                 existing["stock_holdings"] = normalized
-                existing["provider"] = TUSHARE_PROVIDER
+                existing["provider"] = provider
                 payload.setdefault("full_details", {})[code] = existing
                 cached = save_profile_cache(profile_dir, code, existing)
                 payload.setdefault("fund_profiles", {})[code] = cached
@@ -1474,9 +1528,12 @@ def apply_tushare_overlay(
                 f"style_index:{symbols['primary']}", "index_daily",
                 {"ts_code": f"{symbols['primary']}.{suffix}", "start_date": start_long, "end_date": end},
             )
-            normalized = normalize_tushare_index(rows, week["end_date"])
+            normalized = normalize_tushare_index(rows, week["end_date"], provider=provider)
             valid, _, latest = index_records_cover_week(normalized, week)
-            status = normalized_tushare_status(f"style_index:{symbols['primary']}", client.statuses[status_start:], "指数历史收盘价", latest)
+            status = normalized_tushare_status(
+                f"style_index:{symbols['primary']}", client.statuses[status_start:], "指数历史收盘价",
+                latest, provider=provider, transport=transport,
+            )
             status["promotion_eligible"] = bool(valid and status["promotion_eligible"])
             shadow[f"style_index:{symbols['primary']}"] = normalized
             if policy == "auto" and valid:
@@ -1486,7 +1543,7 @@ def apply_tushare_overlay(
                     "resolved_source": "index_daily",
                     "source_latest_date": latest,
                     "freshness_status": "周期完整",
-                    "provider": TUSHARE_PROVIDER,
+                    "provider": provider,
                     "crosscheck_status": health_crosscheck_for(
                         health, f"style_indexes:{symbols['primary']}", "style_indexes"
                     ),
@@ -1502,7 +1559,7 @@ def apply_tushare_overlay(
             continue
         status_start = len(client.statuses)
         kind = "industry" if sector_type == "行业资金流" else "concept"
-        rows = complete_cached_sector_flow(store, kind, flow_dates) if cache_allowed else []
+        rows = complete_cached_sector_flow(store, kind, flow_dates, providers=cache_providers) if cache_allowed else []
         cache_used = bool(rows)
         if cache_used:
             client.statuses.append({
@@ -1523,8 +1580,13 @@ def apply_tushare_overlay(
                 symbol = str(row.get("ts_code") or f"tushare:{kind}:{row.get('industry') or row.get('name') or ''}")
                 grouped.setdefault(symbol, []).append(row)
             for symbol, values in grouped.items():
-                store.upsert_series(TUSHARE_PROVIDER, f"{kind}_flow_daily", symbol, values)
-        period_rows = {period: aggregate_sector_flow(rows, period=period, end_date=week["end_date"], sector_type=sector_type) for period in (1, 5, 10)}
+                store.upsert_series(provider, f"{kind}_flow_daily", symbol, values)
+        period_rows = {
+            period: aggregate_sector_flow(
+                rows, period=period, end_date=week["end_date"], sector_type=sector_type, provider=provider
+            )
+            for period in (1, 5, 10)
+        }
         shadow[health_key] = {("今日" if period == 1 else f"{period}日"): values for period, values in period_rows.items()}
         complete = bool(period_rows[5])
         prefix = "industry" if sector_type == "行业资金流" else "concept"
@@ -1541,13 +1603,16 @@ def apply_tushare_overlay(
                 payload["market"]["sectors"]["fund_flow"].setdefault(storage_label, {})[sector_type] = period_rows[period]
                 payload["market"]["sectors"].setdefault("flow_meta", {}).setdefault(storage_label, {})[sector_type] = {
                     "source_date": week["end_date"], "cache_age_days": 0,
-                    "rolling_matches_report": True, "provider": TUSHARE_PROVIDER,
+                    "rolling_matches_report": True, "provider": provider,
                     "flow_basis": "net_amount（原始单位亿元）按报告截止日前真实交易日累计并换算为元",
                     "normalized_flow_unit": "元",
                     "taxonomy": "同花顺行业" if sector_type == "行业资金流" else "同花顺概念",
                     "universe_scope": "同花顺行业全量" if sector_type == "行业资金流" else "同花顺概念全量",
                 }
-                status = normalized_tushare_status(f"{prefix}_flow:{storage_label}", client.statuses[status_start:], f"{label}net_amount累计", week["end_date"])
+                status = normalized_tushare_status(
+                    f"{prefix}_flow:{storage_label}", client.statuses[status_start:], f"{label}net_amount累计",
+                    week["end_date"], provider=provider, transport=transport,
+                )
                 if cache_used:
                     status.update({"provider": "本地增量缓存", "transport": "sqlite", "resolved_by": "sqlite_incremental_cache", "cache_hit": True})
                 status["crosscheck_status"] = "cached_validated_history" if cache_used else health_crosscheck(health, health_key)
@@ -1568,7 +1633,7 @@ def apply_tushare_overlay(
                         "主力净流入": (parse_number(row.get("net_amount")) or 0) * 100_000_000,
                         "资金单位": "元",
                         "source_date": week["end_date"],
-                        "provider": TUSHARE_PROVIDER,
+                        "provider": provider,
                         "taxonomy": "同花顺概念",
                     }
                     for row in latest_rows
@@ -1590,8 +1655,8 @@ def apply_tushare_overlay(
                         "stale_days": 0,
                         "record_count": len(concept_close),
                         "reason": None,
-                        "provider": "本地增量缓存" if cache_used else TUSHARE_PROVIDER,
-                        "transport": "sqlite" if cache_used else "http",
+                        "provider": "本地增量缓存" if cache_used else provider,
+                        "transport": "sqlite" if cache_used else transport,
                         "cache_hit": cache_used,
                     })
             if kind == "industry":
@@ -1607,8 +1672,8 @@ def apply_tushare_overlay(
                     "stale_days": 0,
                     "record_count": len(rows),
                     "reason": None,
-                    "provider": "本地增量缓存" if cache_used else TUSHARE_PROVIDER,
-                    "transport": "sqlite" if cache_used else "http",
+                    "provider": "本地增量缓存" if cache_used else provider,
+                    "transport": "sqlite" if cache_used else transport,
                     "cache_hit": cache_used,
                 })
             used_datasets.append(health_key)
@@ -1631,14 +1696,17 @@ def apply_tushare_overlay(
                 "none": adjusted_etf_history(daily, factors, mode="none", cutoff=week["end_date"]),
             }
             shadow[f"etf_return:{code}"] = histories
-            status = normalized_tushare_status(f"etf_return:{code}", client.statuses[status_start:], "fund_daily+fund_adj", week["end_date"])
+            status = normalized_tushare_status(
+                f"etf_return:{code}", client.statuses[status_start:], "fund_daily+fund_adj",
+                week["end_date"], provider=provider, transport=transport,
+            )
             status["promotion_eligible"] = bool(histories["hfq"] and status["promotion_eligible"])
             if policy == "auto" and histories["hfq"]:
                 payload["candidate_etfs"]["history"][code] = histories
                 payload["candidate_etfs"].setdefault("history_meta", {})[code] = {
-                    "provider": TUSHARE_PROVIDER,
+                    "provider": provider,
                     "return_basis": "fund_daily+fund_adj",
-                    "transport": "http",
+                    "transport": transport,
                     "crosscheck_status": health_crosscheck_for(
                         health, f"etf_return:{code}", "fund_daily"
                     ),
@@ -1651,7 +1719,7 @@ def apply_tushare_overlay(
     if candidate_codes and proxy_enabled(policy, health, "etf_realtime_daily"):
         live_scope = ",".join(sorted(candidate_codes))
         live_as_of = str(week.get("collection_trade_date") or week["end_date"])
-        live_rows = store.get_snapshot("etf_live_quote", live_scope, live_as_of, provider=TUSHARE_PROVIDER) if store else None
+        live_rows = store.get_snapshot("etf_live_quote", live_scope, live_as_of, provider=provider) if store else None
         live_status_start = len(client.statuses)
         live_cache_hit = bool(live_rows)
         if not live_rows:
@@ -1666,7 +1734,7 @@ def apply_tushare_overlay(
             live_rows = [row for row in live_rows if str(row.get("ts_code") or "")[:6] in wanted]
             if store and live_rows:
                 store.put_snapshot(
-                    TUSHARE_PROVIDER,
+                    provider,
                     "etf_live_quote",
                     live_scope,
                     live_as_of,
@@ -1690,7 +1758,7 @@ def apply_tushare_overlay(
                     "trade_time": row.get("trade_time"),
                     "price_source": "rt_etf_k",
                     "turnover_source": "rt_etf_k（元）",
-                    "provider": TUSHARE_PROVIDER,
+                    "provider": provider,
                 }
                 for row in live_rows
                 if str(row.get("ts_code") or "")[:6] in set(candidate_codes)
@@ -1718,7 +1786,7 @@ def apply_tushare_overlay(
             live_map = payload["candidate_etfs"].setdefault("live_snapshot", {})
             for row in iopv_rows:
                 code = str(row.get("ts_code") or "")[:6]
-                target = live_map.setdefault(code, {"code": code, "provider": TUSHARE_PROVIDER})
+                target = live_map.setdefault(code, {"code": code, "provider": provider})
                 target.update({
                     "price": parse_number(row.get("price")) if parse_number(row.get("price")) is not None else target.get("price"),
                     "iopv": parse_number(row.get("iopv")) if (parse_number(row.get("iopv")) or 0) > 0 else None,
@@ -1740,20 +1808,25 @@ def apply_tushare_overlay(
             "attempted_sources": [], "resolved_by": None, "status": "not_required",
             "basis": "沪市ETF盘中IOPV", "source_date": None, "stale_days": 0,
             "record_count": 0, "reason": "当前已接入的Tushare实时参考接口仅覆盖深市；沪市使用收盘净值溢价",
-            "provider": TUSHARE_PROVIDER, "transport": "http", "cache_hit": False,
+            "provider": provider, "transport": transport, "cache_hit": False,
         })
 
     payload["provider_policy"] = policy
     payload["provider_route"] = {
-        "selected_provider": TUSHARE_PROVIDER if used_datasets else "AkShare及公开备用源",
+        "selected_provider": provider if used_datasets else "AkShare及公开备用源",
         "promoted_datasets": used_datasets,
         "health_created_at": health.get("created_at"),
+        "source_mismatch": health.get("source_mismatch"),
         "endpoint_fingerprint": client.metadata.get("endpoint_fingerprint"),
-        "credential_risk": "当前凭据曾暴露；自动任务启用前必须更换。",
+        "credential_risk": (
+            "官方Tushare Pro token仅通过官方SDK使用并必须保密。"
+            if client.metadata.get("provider_mode") == "official" else
+            "第三方代理凭据不是官方Tushare Pro token；不要把官方token发送给代理。"
+        ),
     }
     if policy == "shadow":
         payload["provider_shadow"] = {
-            "provider": TUSHARE_PROVIDER,
+            "provider": provider,
             "endpoint_fingerprint": client.metadata.get("endpoint_fingerprint"),
             "datasets": shadow,
             "note": "影子数据不参与本次报告结论。",
@@ -1873,6 +1946,14 @@ def collect_live(args: argparse.Namespace, holdings: list[dict[str, Any]]) -> di
     run_id = stable_hash({"as_of": dt.datetime.now().isoformat(), "holdings": holdings, "end_date": args.end_date})[:16]
     cache_audit: list[dict[str, Any]] = []
     proxy_client, proxy_health = create_tushare_client(args, request_cache_root, {"stage": "weekly", "mode": args.mode})
+    tushare_provider = (
+        str(proxy_client.metadata.get("provider") or TUSHARE_PROVIDER)
+        if proxy_client else TUSHARE_PROVIDER
+    )
+    tushare_transport = (
+        str(proxy_client.metadata.get("transport") or "unknown")
+        if proxy_client else "unknown"
+    )
     calendar_client = AkshareClient(
         ak,
         request_cache_root / "calendar",
@@ -1896,7 +1977,7 @@ def collect_live(args: argparse.Namespace, holdings: list[dict[str, Any]]) -> di
         )
         proxy_dates = extract_trade_dates(proxy_calendar)
         if args.provider_policy == "auto" and proxy_dates:
-            trade_dates, calendar_source = proxy_dates, TUSHARE_PROVIDER
+            trade_dates, calendar_source = proxy_dates, tushare_provider
     if not trade_dates:
         trade_dates, calendar_source = collect_trade_calendar(calendar_client, today, explicit_end)
     week = resolve_week(trade_dates, today, explicit_end)
@@ -1915,8 +1996,14 @@ def collect_live(args: argparse.Namespace, holdings: list[dict[str, Any]]) -> di
         refresh=args.refresh,
         context={"week": week, "mode": args.mode, "etfs": sorted(args.etf)},
     )
-    if calendar_source == TUSHARE_PROVIDER and proxy_client:
-        datasets = [normalized_tushare_status("trade_calendar", [row for row in proxy_client.statuses if row.get("dataset") == "trade_calendar"], "A股交易日历")]
+    if calendar_source == tushare_provider and proxy_client:
+        datasets = [normalized_tushare_status(
+            "trade_calendar",
+            [row for row in proxy_client.statuses if row.get("dataset") == "trade_calendar"],
+            "A股交易日历",
+            provider=tushare_provider,
+            transport=tushare_transport,
+        )]
     else:
         datasets = [dataset_status("trade_calendar", calendar_client.statuses, basis="A股交易日历")]
 
@@ -2040,7 +2127,8 @@ def collect_live(args: argparse.Namespace, holdings: list[dict[str, Any]]) -> di
             "selected_provider": "AkShare及公开备用源 + 已验证本地历史" if cached_flow_datasets else "AkShare及公开备用源",
             "promoted_datasets": cached_flow_datasets,
             "health_created_at": proxy_health.get("created_at"),
-            "runtime_status": proxy_health.get("runtime_unavailable") or "未配置代理凭据",
+            "source_mismatch": proxy_health.get("source_mismatch"),
+            "runtime_status": proxy_health.get("runtime_unavailable") or "未配置Tushare凭据",
         }
     cache_counts = persist_payload_to_cache(store, payload)
     all_audit = cache_audit + calendar_client.statuses + client.statuses + (proxy_client.statuses if proxy_client else [])

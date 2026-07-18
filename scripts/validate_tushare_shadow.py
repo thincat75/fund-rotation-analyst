@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Cross-check shadow proxy datasets and update per-dataset promotion eligibility."""
+"""Cross-check shadow Tushare datasets and update per-dataset promotion eligibility."""
 
 from __future__ import annotations
 
@@ -59,7 +59,11 @@ def top_stock_codes(rows: list[dict[str, Any]]) -> set[str]:
 
 
 def valid_shadow(payload: dict[str, Any]) -> bool:
-    return (payload.get("provider_shadow") or {}).get("provider") == "第三方 Tushare 代理"
+    return (payload.get("provider_shadow") or {}).get("provider") in {
+        "Tushare Pro 官方",
+        "第三方 Tushare 兼容代理",
+        "第三方 Tushare 代理",
+    }
 
 
 def collect_checks(shadows: list[dict[str, Any]]) -> dict[str, Any]:

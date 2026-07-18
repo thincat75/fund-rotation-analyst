@@ -4,7 +4,11 @@
 
 The default AkShare workflow does not require credentials.
 
-The optional third-party Tushare proxy requires `TUSHARE_TOKEN`. It uses HTTP transport and is not an official Tushare endpoint. Treat the token and all returned data as visible to the proxy operator.
+Official Tushare Pro and a third-party compatibility proxy use different credentials:
+
+- `TUSHARE_PROVIDER=official` expects a token issued by `tushare.pro`. Do not set `TUSHARE_HTTP_URL`; the code uses the official SDK endpoint without a private-field override.
+- `TUSHARE_PROVIDER=third-party-proxy` expects a credential issued by that proxy. It uses HTTP transport and is not an official Tushare endpoint. Treat the credential and all returned data as visible to the proxy operator.
+- Never send an official Tushare Pro token to a third-party endpoint.
 
 - Keep credentials in process environment variables or enter them through the hidden prompt.
 - Never commit `.env`, tokens, proxy health files, raw logs, holdings, caches, or generated reports containing private portfolio data.

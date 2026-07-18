@@ -16,3 +16,12 @@ Mock 数据只验证流程、门控和页面布局：
 - 基金规模、季度持仓、真实行情和两融历史不会在 mock 中伪造。
 - 缺失区块会保留并明确显示降级原因。
 - 任何 mock 结论都不能用于投资决策。
+
+`tushare_official_smoke.py`演示官方 Tushare Pro SDK 初始化。运行前设置官网签发的 `TUSHARE_TOKEN`，并确保没有设置第三方 `TUSHARE_HTTP_URL`：
+
+```bash
+export TUSHARE_PROVIDER=official
+unset TUSHARE_HTTP_URL
+read -s TUSHARE_TOKEN && export TUSHARE_TOKEN
+.venv/bin/python examples/tushare_official_smoke.py
+```

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Safe access and normalization for the authenticated third-party Tushare proxy."""
+"""Safe access and normalization for official Tushare Pro or an approved proxy."""
 
 from __future__ import annotations
 
@@ -15,11 +15,15 @@ from urllib.parse import urlparse
 from data_access import df_to_records, is_retryable, load_json, parse_number, wall_clock_timeout, write_json
 
 
-PROVIDER = "第三方 Tushare 代理"
+OFFICIAL_PROVIDER = "Tushare Pro 官方"
+THIRD_PARTY_PROVIDER = "第三方 Tushare 兼容代理"
+LEGACY_THIRD_PARTY_PROVIDER = "第三方 Tushare 代理"
+# Backward-compatible names for old cache readers and imports.
+PROVIDER = THIRD_PARTY_PROVIDER
 TRANSPORT = "http"
 DEFAULT_HTTP_URL = "http://cheap-host1.cheapyun.com:24145"
 ALLOWED_ENDPOINTS = {("cheap-host1.cheapyun.com", 24145)}
-CLIENT_VERSION = "2.5"
+CLIENT_VERSION = "2.6"
 FUND_MASTER_FIELDS = "ts_code,name,fund_type,invest_type,type,benchmark,status,m_fee,c_fee"
 
 
@@ -35,6 +39,19 @@ def endpoint_fingerprint(value: str) -> str:
     return secret_fingerprint(value, 12)
 
 
+def health_source_matches(health: dict[str, Any], metadata: dict[str, Any]) -> bool:
+    """Prevent a health promotion created for one source from authorizing another source."""
+    if not health:
+        return True
+    health_mode = health.get("provider_mode")
+    health_endpoint = health.get("endpoint_fingerprint")
+    if health_mode and health_mode != metadata.get("provider_mode"):
+        return False
+    if health_endpoint and health_endpoint != metadata.get("endpoint_fingerprint"):
+        return False
+    return True
+
+
 def validate_endpoint(endpoint: str) -> str:
     parsed = urlparse(endpoint)
     if parsed.scheme != "http" or (parsed.hostname, parsed.port) not in ALLOWED_ENDPOINTS:
@@ -48,23 +65,41 @@ def create_pro(
     token: str | None = None,
     endpoint: str | None = None,
     *,
+    provider_mode: str | None = None,
     ts_module: Any | None = None,
 ) -> tuple[Any, Any, dict[str, Any]]:
-    """Create the proxy client using the seller-required initialization contract."""
+    """Create an official client by default; override the SDK URL only for the approved proxy."""
     token = token or os.environ.get("TUSHARE_TOKEN")
-    endpoint = validate_endpoint(endpoint or os.environ.get("TUSHARE_HTTP_URL", DEFAULT_HTTP_URL))
     if not token:
         raise ProxyConfigurationError("TUSHARE_TOKEN is required")
+    configured_endpoint = endpoint or os.environ.get("TUSHARE_HTTP_URL")
+    mode = provider_mode or os.environ.get("TUSHARE_PROVIDER") or (
+        "third-party-proxy" if configured_endpoint else "official"
+    )
+    if mode not in {"official", "third-party-proxy"}:
+        raise ProxyConfigurationError("TUSHARE_PROVIDER must be official or third-party-proxy")
     if ts_module is None:
         import tushare as ts_module  # type: ignore
 
     pro = ts_module.pro_api(token)
-    # The seller requires this private SDK field. Keep the compatibility risk here.
-    pro._DataApi__http_url = endpoint
+    if mode == "third-party-proxy":
+        proxy_endpoint = validate_endpoint(configured_endpoint or DEFAULT_HTTP_URL)
+        # The compatibility proxy requires this private SDK field. Keep that risk isolated here.
+        pro._DataApi__http_url = proxy_endpoint
+        provider = THIRD_PARTY_PROVIDER
+        transport = "http"
+        fingerprint = endpoint_fingerprint(proxy_endpoint)
+    else:
+        if endpoint is not None:
+            raise ProxyConfigurationError("official Tushare Pro must not override the SDK endpoint")
+        provider = OFFICIAL_PROVIDER
+        transport = "official_sdk"
+        fingerprint = endpoint_fingerprint("tushare-pro-official-sdk")
     metadata = {
-        "provider": PROVIDER,
-        "transport": TRANSPORT,
-        "endpoint_fingerprint": endpoint_fingerprint(endpoint),
+        "provider": provider,
+        "provider_mode": mode,
+        "transport": transport,
+        "endpoint_fingerprint": fingerprint,
         "token_fingerprint": secret_fingerprint(token),
         "sdk_version": getattr(ts_module, "__version__", "unknown"),
         "client_version": CLIENT_VERSION,
@@ -110,7 +145,8 @@ def collect_fund_master(
         rows = [index[code] for code in sorted(wanted)]
         client.statuses.append({
             "dataset": "fund_basic", "label": "fund_basic", "function": "fund_master_index",
-            "provider": PROVIDER, "transport": TRANSPORT,
+            "provider": client.metadata.get("provider", PROVIDER),
+            "transport": client.metadata.get("transport", TRANSPORT),
             "endpoint_fingerprint": client.metadata["endpoint_fingerprint"], "status": "ok",
             "record_count": len(rows), "cache_hit": True, "pages_fetched": 0,
         })
@@ -147,7 +183,8 @@ def collect_fund_master(
     matched = [index[code] for code in sorted(wanted & set(index))]
     client.statuses.append({
         "dataset": "fund_basic", "label": "fund_basic", "function": "fund_basic_paginated",
-        "provider": PROVIDER, "transport": TRANSPORT,
+        "provider": client.metadata.get("provider", PROVIDER),
+        "transport": client.metadata.get("transport", TRANSPORT),
         "endpoint_fingerprint": client.metadata["endpoint_fingerprint"],
         "status": "ok" if found >= wanted else "partial" if matched else "failed",
         "record_count": len(matched), "cache_hit": bool(page_statuses and all(row.get("cache_hit") for row in page_statuses)),
@@ -274,6 +311,7 @@ def aggregate_sector_flow(
     period: int,
     end_date: str,
     sector_type: str,
+    provider: str = PROVIDER,
 ) -> list[dict[str, Any]]:
     """Aggregate net_amount and index return for the latest N trading days."""
     end_key = end_date.replace("-", "")
@@ -326,7 +364,7 @@ def aggregate_sector_flow(
                 f"{label}主力净流入-净额": net_amount,
                 f"{label}涨跌幅": return_value,
                 "source_date": source_date,
-                "provider": PROVIDER,
+                "provider": provider,
                 "flow_basis": "net_amount（原始单位亿元）按真实交易日累计并换算为元",
                 "资金单位": "元",
                 "原始资金单位": "亿元",
@@ -337,7 +375,7 @@ def aggregate_sector_flow(
 
 
 class TushareProxyClient:
-    """Cached per-call client for data collection after health-based promotion."""
+    """Cached per-call Tushare client for data collection after health-based promotion."""
 
     def __init__(
         self,
@@ -427,7 +465,7 @@ class TushareProxyClient:
         return []
 
     def pro_bar(self, dataset: str, kwargs: dict[str, Any], *, limit: int | None = None) -> list[dict[str, Any]]:
-        """All pro_bar calls explicitly pass api=pro as required by the proxy."""
+        """All pro_bar calls explicitly pass api=pro for consistent source routing."""
         path = self._cache_path("pro_bar", kwargs)
         cached, fresh, age_days = self._cached_records(path, "pro_bar", kwargs)
         if cached and fresh and not self.refresh:
@@ -489,8 +527,8 @@ class TushareProxyClient:
                 "dataset": dataset,
                 "label": dataset,
                 "function": name,
-                "provider": PROVIDER,
-                "transport": TRANSPORT,
+                "provider": self.metadata.get("provider", PROVIDER),
+                "transport": self.metadata.get("transport", TRANSPORT),
                 "endpoint_fingerprint": self.metadata["endpoint_fingerprint"],
                 "status": status,
                 "record_count": len(records),

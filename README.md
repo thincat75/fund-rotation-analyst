@@ -1,6 +1,8 @@
 # Fund Rotation Analyst
 
-一个面向中国公募基金组合的 Codex Skill。它把基金净值、风格指数、行业/概念资金流、ETF 交易质量和 A 股两融数据组织成可审计的三周轮动报告，并输出中文 JSON、Markdown 和响应式 HTML。
+一个面向中国公募基金组合的 Agent Skill 与独立 CLI。它把基金净值、风格指数、行业/概念资金流、ETF 交易质量和 A 股两融数据组织成可审计的三周轮动报告，并输出中文 JSON、Markdown 和响应式 HTML。
+
+项目目前在 Codex 中开发和调试，并提供原生 `SKILL.md` 与 `agents/openai.yaml`；核心采集、分析、渲染和验证均为普通 Python CLI，不依赖 Codex 运行时。任何能够执行命令、读写 JSON 并展示 HTML 的 Agent 都可以调用，也可以只把它当作本地分析工具使用。
 
 > 本项目只做研究与组合分析，不连接券商账户，不自动下单，也不构成投资建议。
 
@@ -35,6 +37,19 @@
 5. 持仓表现和板块 Top10
 6. ETF 交易质量与 Top3 门控
 7. 缓存、数据质量和接口审计
+
+## 给其他 Agent 使用
+
+其他 Agent 不需要理解 Codex 的 Skill 元数据，只需按四段流水线调用：
+
+```text
+collect_weekly_data.py -> analyze_weekly.py -> render_weekly_report.py / render_weekly_visual_report.py -> validate_report.py
+```
+
+- 数值、日期边界、评分、动作和配比由 Python 脚本确定。
+- Agent 可以解释 `weekly_llm_evidence.json`，但不得修改其中的数值、评分或动作。
+- `SKILL.md` 是 Codex/OpenAI Agent 的封装入口；其他 Agent 可读取 [AGENTS.md](AGENTS.md) 或直接使用本 README 的 CLI 合同。
+- CLI 不调用 OpenAI API，也不要求 Agent 使用特定模型或厂商。
 
 ## 安装
 
@@ -153,18 +168,65 @@ Python 3.11+ 推荐；当前测试覆盖 Python 3.14。
 | AkShare | 基金净值、排行、持仓、指数、板块、ETF、交易所两融等公开数据聚合 | 不需要 | 是 |
 | 东方财富、同花顺、新浪、腾讯、中证指数及交易所公开页面 | 由 AkShare 或本地适配器作为主源/备用源 | 通常不需要 | 按数据集 |
 | HKEX Stock Connect eligible list | 核验 ETF 是否在沪股通/深股通合资格名单 | 不需要 | 按需 |
-| 第三方 Tushare HTTP 代理 | 可选基金、指数、板块资金流、ETF、两融增强数据 | **需要代理服务方提供的 token** | 否 |
+| Tushare Pro 官方 | 可选基金、指数、板块资金流、ETF、两融增强数据 | **需要在 Tushare 官网取得的 Pro token，并满足对应积分/接口权限** | 否，推荐的增强路径 |
+| 第三方 Tushare 兼容代理 | 兼容部分 Tushare API 的备用来源 | **需要代理服务方自己的卡号/token，不是官方 Pro token** | 否，不推荐用于正式或无人值守运行 |
 | OpenAI API | 不由 CLI 直接调用；Codex 可基于证据 JSON 做受约束解释 | 不需要额外 API key | 可选 |
 
-### 可选第三方 Tushare 代理
+### 推荐：官方 Tushare Pro
 
-该代理不是 Tushare 官方服务。只有你已获得代理服务方授权时才启用：
+在 [Tushare Pro 官网](https://tushare.pro/) 注册并获取官方 token。不同接口可能需要相应积分或独立权限，具体以 [官方权限说明](https://tushare.pro/document/1?doc_id=290) 为准。
 
 ```bash
-export TUSHARE_TOKEN="替换为你自己的 token"
-export TUSHARE_HTTP_URL="http://cheap-host1.cheapyun.com:24145"
+export TUSHARE_PROVIDER="official"
+unset TUSHARE_HTTP_URL
+read -s TUSHARE_TOKEN && export TUSHARE_TOKEN
 
-.venv/bin/python scripts/smoke_test_tushare_proxy.py \
+.venv/bin/python examples/tushare_official_smoke.py
+```
+
+对应的官方 Python 调用方式是：
+
+```python
+import os
+import tushare as ts
+
+pro = ts.pro_api(os.environ["TUSHARE_TOKEN"])
+d1 = pro.index_basic(limit=5)
+d2 = ts.pro_bar(api=pro, ts_code="000001.SZ", limit=3)
+print(d1)
+print(d2)
+```
+
+代码不会修改 `pro._DataApi__http_url`，数据直接通过官方 SDK 获取。可先执行逐接口健康检查：
+
+```bash
+.venv/bin/python scripts/smoke_test_tushare.py \
+  --provider official \
+  --rounds 3 \
+  --timeout 15 \
+  --group all \
+  --output work/tushare_official_health.json
+
+.venv/bin/python scripts/collect_weekly_data.py \
+  --holdings examples/holdings.sample.json \
+  --output work/weekly_shadow.json \
+  --provider-policy shadow \
+  --tushare-health work/tushare_official_health.json
+```
+
+官方示例和 token 初始化方式见 [Tushare 官方调用文档](https://tushare.pro/document/1?doc_id=40)。
+
+### 兼容选项：第三方 Tushare 代理
+
+此前购买的便宜卡号属于第三方代理凭据，只能和该代理地址一起使用。它不是 Tushare 官网签发的 Pro token。只有你已确认代理服务方授权、数据来源和使用条款时才启用：
+
+```bash
+export TUSHARE_PROVIDER="third-party-proxy"
+export TUSHARE_HTTP_URL="http://cheap-host1.cheapyun.com:24145"
+read -s TUSHARE_TOKEN && export TUSHARE_TOKEN
+
+.venv/bin/python scripts/smoke_test_tushare.py \
+  --provider third-party-proxy \
   --rounds 3 \
   --timeout 15 \
   --group all \
@@ -173,7 +235,11 @@ export TUSHARE_HTTP_URL="http://cheap-host1.cheapyun.com:24145"
 
 然后先运行 `shadow`，完成跨源核验后再使用 `auto`。示例成功不代表所有数据集均可靠，每个数据集必须独立晋级。
 
-注意：该代理使用 HTTP，token 和返回数据对代理运营方可见。不要把 token 写入代码、`.env`、报告、缓存、命令历史或 Issue。已经暴露的 token 必须先更换。
+官方源和第三方代理必须使用各自独立的健康文件与 shadow 记录。程序会校验 provider mode 和 endpoint fingerprint，禁止用代理的晋级结果授权官方源，反之亦然。
+
+正式使用建议选择官方 Tushare Pro，原因是账号权限、接口积分、服务条款和问题支持均可直接核验。第三方代理更适合短期隔离测试，不建议用于定期自动任务。
+
+重要：不要把官方 Tushare Pro token 配置给第三方代理。该代理使用 HTTP，代理卡号和返回数据对代理运营方可见。不要把任何 token 写入代码、`.env`、报告、缓存、命令历史或 Issue；已经暴露的凭据必须先更换。
 
 详细来源、单位、fallback 和缓存规则见 [references/data_sources.md](references/data_sources.md)。
 

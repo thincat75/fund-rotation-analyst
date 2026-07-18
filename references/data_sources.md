@@ -16,25 +16,32 @@ Use `work/cache/fund-rotation/cache.sqlite3` for all report versions. The SQLite
 - Cache raw-data version independently from analysis and HTML versions. A scoring or rendering change must not redownload historical data.
 - Record cache hits and API attempts in `api_audit`; exclude real-time ETF calls from historical cache-hit targets.
 
-Use AkShare and public fallbacks as the default source chain. An authenticated third-party Tushare proxy is optional and is promoted independently by dataset after health and cross-source checks. It is acceptable for individual endpoints to fail; preserve partial results and surface only unresolved logical datasets as warnings.
+Use AkShare and public fallbacks as the default source chain. Official Tushare Pro is the preferred authenticated enhancement and is promoted independently by dataset after health and cross-source checks. A third-party Tushare-compatible proxy is optional and lower trust. It is acceptable for individual endpoints to fail; preserve partial results and surface only unresolved logical datasets as warnings.
 
-## Third-Party Tushare Proxy
+## Tushare Pro And Compatibility Proxy
 
-The only permitted initialization is the environment-variable contract in `SKILL.md`, implemented once in `scripts/tushare_proxy.py`. The client restricts `TUSHARE_HTTP_URL` to the configured host and port and records only endpoint/token hashes, never raw credentials. Because transport is HTTP, assume credentials and returned data are exposed to the proxy operator. Label all returned data `第三方 Tushare 代理`.
+The environment-variable contract in `SKILL.md` is implemented once in `scripts/tushare_proxy.py`:
 
-Run `scripts/smoke_test_tushare_proxy.py` in isolated subprocesses with a hard timeout. The seller examples, fund NAV, fund portfolio, industry flow, and concept flow require 3/3 success. Quick-path interfaces require median latency at most 3 seconds and P95 at most 10 seconds. Slow but repeatable `fund_portfolio` and sector-flow datasets may be classified as `cached/background` when median latency is at most 8 seconds and P95 at most 15 seconds; they must be prefetched and reused rather than blocking every quick report. A slower live endpoint does not invalidate already verified frozen history, but it cannot refresh missing dates. HTTP 200 with HTML, empty data, wrong fields, or stale dates is failure.
+- `TUSHARE_PROVIDER=official`: `TUSHARE_TOKEN` must be issued by `tushare.pro`; `TUSHARE_HTTP_URL` remains unset and the SDK endpoint is not overridden. Label rows `Tushare Pro 官方`.
+- `TUSHARE_PROVIDER=third-party-proxy`: `TUSHARE_TOKEN` is the proxy-issued card/token and `TUSHARE_HTTP_URL` is restricted to the approved fixed host and port. Label rows `第三方 Tushare 兼容代理`.
+
+The two credentials are not interchangeable. Never send an official Tushare Pro token to a third-party endpoint. The client records only endpoint/token hashes, never raw credentials. Because the compatibility proxy uses HTTP, assume its credential and returned data are exposed to the proxy operator. Prefer official Tushare Pro for formal, recurring, or unattended reports.
+
+Health and shadow artifacts are source-bound. Their `provider_mode` and `endpoint_fingerprint` must match the runtime client before any `promotion_eligible` flag is honored. Switching between official and proxy modes requires a new health check and three-source-date shadow sequence.
+
+Run `scripts/smoke_test_tushare.py` in isolated subprocesses with a hard timeout. The initialization examples, fund NAV, fund portfolio, industry flow, and concept flow require 3/3 success. Interface availability still depends on the official account's points or separately purchased permissions. Quick-path interfaces require median latency at most 3 seconds and P95 at most 10 seconds. Slow but repeatable `fund_portfolio` and sector-flow datasets may be classified as `cached/background` when median latency is at most 8 seconds and P95 at most 15 seconds; they must be prefetched and reused rather than blocking every quick report. A slower live endpoint does not invalidate already verified frozen history, but it cannot refresh missing dates. HTTP 200 with HTML, empty data, wrong fields, or stale dates is failure.
 
 Industry/concept flow health additionally requires three identical content fingerprints for the same query window, at least 99% numeric `net_amount` coverage, no duplicate `(trade_date, sector)` keys, both positive and negative observations, and a sane magnitude. A slow response that passes these checks is usable from cache; it is not described as a fast real-time interface.
 
-Dataset routes in `auto` mode:
+Dataset routes in `auto` mode use a health-promoted Tushare source, preferring official Tushare Pro when configured:
 
-- Fund NAV: proxy `fund_nav` (`adj_nav`, then continuous `accum_nav`) -> AkShare.
-- Fund portfolio: proxy `fund_portfolio` using latest `ann_date <= report.end_date` -> AkShare -> quarterly profile cache.
-- Style indexes: proxy `index_daily` -> CSIndex -> Tencent -> date-qualified Sina.
-- Industry/concept flow: proxy `moneyflow_ind_ths` / `moneyflow_cnt_ths` -> AkShare -> same-period cache.
-- ETF history: proxy `fund_daily + fund_adj` -> AkShare adjusted price -> checked Sina history.
-- ETF live quote: promoted proxy `rt_etf_k` -> targeted Eastmoney -> Sina snapshot. Batch Shanghai `5*.SH` with `topic="HQ_FND_TICK"`; batch Shenzhen `15*.SZ` without that topic.
-- ETF IOPV: promoted proxy `rt_etf_sz_iopv` for Shenzhen -> existing public quote chain. There is no corresponding promoted Shanghai proxy IOPV in this workflow; use date-aligned closing price/unit NAV for Shanghai report-end premium and mark intraday IOPV not applicable.
+- Fund NAV: Tushare `fund_nav` (`adj_nav`, then continuous `accum_nav`) -> AkShare.
+- Fund portfolio: Tushare `fund_portfolio` using latest `ann_date <= report.end_date` -> AkShare -> quarterly profile cache.
+- Style indexes: Tushare `index_daily` -> CSIndex -> Tencent -> date-qualified Sina.
+- Industry/concept flow: Tushare `moneyflow_ind_ths` / `moneyflow_cnt_ths` -> AkShare -> same-period cache.
+- ETF history: Tushare `fund_daily + fund_adj` -> AkShare adjusted price -> checked Sina history.
+- ETF live quote: promoted Tushare `rt_etf_k` -> targeted Eastmoney -> Sina snapshot. Batch Shanghai `5*.SH` with `topic="HQ_FND_TICK"`; batch Shenzhen `15*.SZ` without that topic.
+- ETF IOPV: promoted Tushare `rt_etf_sz_iopv` for Shenzhen -> existing public quote chain. There is no corresponding promoted Shanghai Tushare IOPV in this workflow; use date-aligned closing price/unit NAV for Shanghai report-end premium and mark intraday IOPV not applicable.
 - Fund rankings: AkShare; do not reconstruct a full-market ranking from high-frequency proxy NAV calls.
 
 The proxy flow APIs use the 同花顺 industry/concept taxonomy, while the AkShare public chain can use 东方财富 classifications. Keep the chosen taxonomy and universe scope on every ranking. Do not silently merge names or describe one provider's taxonomy as a provider-neutral whole-market universe. When proxy data replaces the public ranking, preserve the public result as alternate audit evidence rather than discarding it.

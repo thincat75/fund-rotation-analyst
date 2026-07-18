@@ -20,6 +20,7 @@ from tushare_proxy import (
     aggregate_sector_flow,
     collect_fund_master,
     create_pro,
+    health_source_matches,
     load_health,
     normalize_fund_nav,
     normalize_fund_portfolio,
@@ -563,8 +564,9 @@ def mock_payload(holdings: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def apply_tushare_full_overlay(collected: dict[str, Any], holdings: list[dict[str, Any]], args: argparse.Namespace) -> dict[str, Any]:
-    """Apply independently promoted proxy datasets to the full portfolio collector."""
+    """Apply independently promoted Tushare datasets to the full portfolio collector."""
     health = load_health(Path(args.tushare_health))
+    source_mismatch = None
     collected["provider_policy"] = args.provider_policy
     collected["provider_route"] = {"selected_provider": "AkShare及公开备用源", "promoted_datasets": []}
     if args.provider_policy == "akshare-only":
@@ -576,13 +578,18 @@ def apply_tushare_full_overlay(collected: dict[str, Any], holdings: list[dict[st
         if args.provider_policy == "auto" and any(
             promotion_eligible(health, name) for name in ["fund_nav", "fund_portfolio", "style_indexes", "industry_flow", "concept_flow"]
         ):
-            collected.setdefault("warnings", []).append("第三方代理运行时不可用，已使用AkShare及公开备用源。")
+            collected.setdefault("warnings", []).append("Tushare运行时不可用，已使用AkShare及公开备用源。")
         return collected
+    if health and not health_source_matches(health, metadata):
+        health = dict(health)
+        health["datasets"] = {}
+        source_mismatch = "健康文件来自不同的Tushare来源；请重新运行健康检查和shadow。"
 
     client = TushareProxyClient(
         pro, ts_module, Path(args.cache_dir) / "tushare", metadata,
         timeout=args.timeout, retries=args.retries, refresh=args.refresh, context={"collector": "full", "mode": args.mode},
     )
+    provider = str(metadata.get("provider") or TUSHARE_PROVIDER)
     enabled = lambda name: args.provider_policy == "shadow" or (args.provider_policy == "auto" and promotion_eligible(health, name))
     enabled_for = lambda specific, generic: args.provider_policy == "shadow" or (
         args.provider_policy == "auto" and (
@@ -610,7 +617,7 @@ def apply_tushare_full_overlay(collected: dict[str, Any], holdings: list[dict[st
             shadow[f"fund_nav:{code}"] = normalized
             if args.provider_policy == "auto" and normalized:
                 collected["funds"].setdefault(code, {})["nav"] = normalized
-                collected["funds"][code]["provider"] = TUSHARE_PROVIDER
+                collected["funds"][code]["provider"] = provider
                 promoted.append(f"fund_nav:{code}")
     if args.mode == "full" and enabled("fund_portfolio"):
         stock_rows = client.call("security_master", "stock_basic", {"exchange": "", "list_status": "L", "fields": "ts_code,symbol,name"})
@@ -632,14 +639,14 @@ def apply_tushare_full_overlay(collected: dict[str, Any], holdings: list[dict[st
                     "持股市值": parse_number(row.get("mkv")),
                     "报告期": row.get("end_date"),
                     "公告日期": row.get("ann_date"),
-                    "provider": TUSHARE_PROVIDER,
+                    "provider": provider,
                 }
                 for row in selected
             ]
             shadow[f"fund_portfolio:{code}"] = normalized
             if args.provider_policy == "auto" and normalized:
                 collected["funds"].setdefault(code, {})["stock_holdings"] = normalized
-                collected["funds"][code]["portfolio_provider"] = TUSHARE_PROVIDER
+                collected["funds"][code]["portfolio_provider"] = provider
                 promoted.append(f"fund_portfolio:{code}")
     if enabled("style_indexes") or any(enabled_for(f"style_indexes:{symbol}", "style_indexes") for symbol in STYLE_INDEXES.values()):
         for name, symbol in STYLE_INDEXES.items():
@@ -648,7 +655,7 @@ def apply_tushare_full_overlay(collected: dict[str, Any], holdings: list[dict[st
             suffix = "SZ" if symbol.startswith("399") else "SH"
             rows = client.call(f"style_index:{symbol}", "index_daily", {"ts_code": f"{symbol}.{suffix}", "start_date": start, "end_date": end})
             normalized = [
-                {"日期": str(row.get("trade_date")), "收盘": parse_number(row.get("close")), "provider": TUSHARE_PROVIDER}
+                {"日期": str(row.get("trade_date")), "收盘": parse_number(row.get("close")), "provider": provider}
                 for row in rows if parse_number(row.get("close")) is not None
             ]
             shadow[f"style_index:{symbol}"] = normalized
@@ -664,19 +671,33 @@ def apply_tushare_full_overlay(collected: dict[str, Any], holdings: list[dict[st
         flow_start = (today - dt.timedelta(days=35)).strftime("%Y%m%d")
         rows = client.call(health_key, api_name, {"start_date": flow_start, "end_date": end, "limit": 5000})
         shadow[health_key] = rows
-        aggregated = {("今日" if period == 1 else f"{period}日"): aggregate_sector_flow(rows, period=period, end_date=today.isoformat(), sector_type=sector_type) for period in (1, 5, 10)}
+        aggregated = {
+            ("今日" if period == 1 else f"{period}日"): aggregate_sector_flow(
+                rows,
+                period=period,
+                end_date=today.isoformat(),
+                sector_type=sector_type,
+                provider=provider,
+            )
+            for period in (1, 5, 10)
+        }
         if args.provider_policy == "auto" and aggregated["5日"]:
             collected["market"][output_key] = aggregated
             promoted.append(health_key)
     collected.setdefault("source_status", []).extend(client.statuses)
     collected["provider_route"] = {
-        "selected_provider": TUSHARE_PROVIDER if promoted else "AkShare及公开备用源",
+        "selected_provider": provider if promoted else "AkShare及公开备用源",
         "promoted_datasets": promoted,
         "endpoint_fingerprint": metadata["endpoint_fingerprint"],
-        "credential_risk": "当前凭据曾暴露；自动任务启用前必须更换。",
+        "source_mismatch": source_mismatch,
+        "credential_risk": (
+            "官方Tushare Pro token仅通过官方SDK使用并必须保密。"
+            if metadata.get("provider_mode") == "official" else
+            "第三方代理凭据不是官方Tushare Pro token；不要把官方token发送给代理。"
+        ),
     }
     if args.provider_policy == "shadow":
-        collected["provider_shadow"] = {"provider": TUSHARE_PROVIDER, "datasets": shadow, "note": "影子数据不参与本次分析。"}
+        collected["provider_shadow"] = {"provider": provider, "datasets": shadow, "note": "影子数据不参与本次分析。"}
     return collected
 
 

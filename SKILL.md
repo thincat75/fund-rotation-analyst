@@ -1,13 +1,13 @@
 ---
 name: fund-rotation-analyst
-description: Analyze Chinese public fund portfolios with AkShare and an optional authenticated third-party Tushare proxy, including fund rankings, sector flows, style rotation, A-share margin-leverage conditions, ETF trading quality, and target allocation suggestions. Use when the user asks to review fund holdings, compare market styles, inspect hot sectors and capital flows, evaluate market leverage, analyze top-performing funds, create recurring reports, or propose fund-level rebalancing ratios.
+description: Analyze Chinese public fund portfolios with AkShare, optional official Tushare Pro, and guarded public fallbacks, including fund rankings, sector flows, style rotation, A-share margin-leverage conditions, ETF trading quality, and target allocation suggestions. Use when the user asks to review fund holdings, compare market styles, inspect hot sectors and capital flows, evaluate market leverage, analyze top-performing funds, create recurring reports, or propose fund-level rebalancing ratios.
 ---
 
 # Fund Rotation Analyst
 
 ## Overview
 
-Use this skill to produce Chinese visual HTML and Markdown reports for fund portfolio review and active rotation suggestions. Use AkShare and public fallbacks by default; an authenticated third-party Tushare proxy may be promoted per dataset only after health and consistency checks. Do not connect to broker accounts, place orders, or imply guaranteed returns.
+Use this skill to produce Chinese visual HTML and Markdown reports for fund portfolio review and active rotation suggestions. The Python CLI is agent-independent even though this `SKILL.md` is developed and validated in Codex. Use AkShare and public fallbacks by default; official Tushare Pro is the preferred authenticated enhancement, while a third-party compatibility proxy is optional and must be isolated. Promote either source per dataset only after health and consistency checks. Do not connect to broker accounts, place orders, or imply guaranteed returns.
 
 ## Workflow
 
@@ -41,7 +41,7 @@ For weekly reviews, default to a three-week rotation report and shared increment
 ```bash
 python scripts/collect_weekly_data.py --holdings holdings.json --output weekly_market_data.json --mode quick --history-weeks 3 --margin-mode summary --cache-root work/cache/fund-rotation
 python scripts/analyze_weekly.py --holdings holdings.json --weekly-data weekly_market_data.json --output weekly_analysis.json --history-weeks 3 --cache-root work/cache/fund-rotation --llm-evidence-output weekly_llm_evidence.json
-# Codex may create evidence-bound weekly_llm_synthesis.json; pure CLI keeps deterministic synthesis.
+# An Agent may create evidence-bound weekly_llm_synthesis.json; pure CLI keeps deterministic synthesis.
 python scripts/finalize_weekly_analysis.py --analysis weekly_analysis.json --evidence weekly_llm_evidence.json --synthesis weekly_llm_synthesis.json --output weekly_analysis.json
 python scripts/render_weekly_report.py --analysis weekly_analysis.json --output weekly_report.md
 python scripts/render_weekly_visual_report.py --weekly-data weekly_analysis.json --output weekly_report.html
@@ -71,28 +71,31 @@ python scripts/backfill_margin_market_history.py --cache-root work/cache/fund-ro
 
 The report must explain that leverage heat is a level indicator with no standalone good/bad direction, while deleveraging pressure is generally calmer when lower and riskier when higher. Neither one is a deterministic return signal.
 
-## Optional Tushare Proxy
+## Optional Tushare Sources
 
-Use only this initialization contract, through `scripts/tushare_proxy.py`:
+For official Tushare Pro, obtain the token from `tushare.pro`, set `TUSHARE_PROVIDER=official`, leave `TUSHARE_HTTP_URL` unset, and use the official SDK without overriding private fields:
 
 ```python
 import os
 import tushare as ts
 
 pro = ts.pro_api(os.environ["TUSHARE_TOKEN"])
-pro._DataApi__http_url = os.environ["TUSHARE_HTTP_URL"]
 d1 = pro.index_basic(limit=5)
 d2 = ts.pro_bar(api=pro, ts_code="000001.SZ", limit=3)
 ```
 
-Never place the token in code, Skill files, caches, logs, commands, or reports. The fixed HTTP endpoint is accepted only for this proxy and must be described as `第三方 Tushare 代理`, not as an official Tushare source. The currently supplied credential was exposed in chat; require a replacement before unattended automation.
+Official Tushare Pro is recommended for formal, recurring, or unattended use because account permissions, points, terms, and support are directly verifiable. A proxy-purchased card is a proxy-issued credential, not an official Pro token.
+
+Only when the user explicitly chooses the approved compatibility proxy, set `TUSHARE_PROVIDER=third-party-proxy`, use the proxy-issued credential, and let `scripts/tushare_proxy.py` apply the fixed private endpoint override. Never send an official Tushare Pro token to a third-party endpoint. Label proxy data `第三方 Tushare 兼容代理`, not `Tushare Pro 官方`.
+
+Never place either token in code, Skill files, caches, logs, commands, or reports. Replace any credential exposed in chat before unattended automation.
 
 Install the pinned SDK, export credentials in the shell, and run isolated health checks before enabling `auto`:
 
 ```bash
-python scripts/smoke_test_tushare_proxy.py --rounds 3 --timeout 15 --group all --output work/tushare_proxy_health.json
-python scripts/collect_weekly_data.py --holdings holdings.json --output weekly_shadow.json --provider-policy shadow --tushare-health work/tushare_proxy_health.json
-python scripts/validate_tushare_shadow.py --health work/tushare_proxy_health.json --shadow shadow_day1.json --shadow shadow_day2.json --shadow shadow_day3.json --output work/tushare_proxy_health_promoted.json
+python scripts/smoke_test_tushare.py --provider official --rounds 3 --timeout 15 --group all --output work/tushare_health.json
+python scripts/collect_weekly_data.py --holdings holdings.json --output weekly_shadow.json --provider-policy shadow --tushare-health work/tushare_health.json
+python scripts/validate_tushare_shadow.py --health work/tushare_health.json --shadow shadow_day1.json --shadow shadow_day2.json --shadow shadow_day3.json --output work/tushare_health_promoted.json
 ```
 
 `shadow` never changes report conclusions. Price/NAV/index datasets remain non-promotable until three distinct shadow trading dates pass cross-source checks; quarterly holdings use a public-report Top10 check. `auto` reads the promoted health file and uses only datasets with `promotion_eligible=true`; `akshare-only` disables the proxy. ETF adjustment must use `fund_daily + fund_adj`. Never treat `pro_bar(..., asset="FD")` adjustment as ETF-adjustment evidence. Aggregate sector flow from the supplied `net_amount`; do not infer it from buy/sell fields.
