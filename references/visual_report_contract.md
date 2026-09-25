@@ -36,6 +36,8 @@ The HTML sections must appear exactly once and in this order:
 - Every percentage and currency value carries a visible label and unit. Fund flow is displayed in `亿元`; weights, returns, drawdowns, and premiums are percentages.
 - The leverage block displays amounts in `亿元`, ratios in percentages, and model values in points. It always shows heat and pressure together, labels five-year versus full-history percentiles, and states that it is display-only.
 - The leverage block must include three labeled 60-session tracks: two融余额, 融资杠杆密度, and the selected broad-index trajectory. It must also show per-week heat/pressure values or explicit blockers in the three-week mini table.
+- The leverage block must include one current-report-year chart that overlays daily leverage heat and deleveraging pressure on the same fixed 0-100 axis. Use labels plus distinct solid/dashed line styles, show the exact date range, and leave unavailable observations missing rather than filling them with zero.
+- The current-year leverage chart must mark material local peaks from the deleveraging-pressure series and list each selected peak's exact date, pressure score, and same-day heat score. Peak selection must not use the heat line as its anchor.
 - Explain financing leverage density, financing trading intensity, leverage heat, and deleveraging pressure in plain Chinese. State that heat is not "higher is better" and pressure is generally calmer when lower, while neither score alone predicts returns.
 - Show the ratio-history observation count and date span beside rolling-window percentiles. Do not label a partial denominator history as full-history coverage.
 - Historical comparison tables must display separate peak dates for absolute financing balance, financing leverage density, and financing trading intensity when those dates differ.
@@ -43,6 +45,7 @@ The HTML sections must appear exactly once and in this order:
 - Include a keyboard skip link, semantic main region, horizontal report navigation, Chinese language metadata, viewport metadata, and visible focus behavior.
 - Include print CSS. Navigation and full interface audit may be omitted from print, while conclusions, holdings, sector evidence, ETF quality, actions, and data gaps remain readable.
 - Keep HTML self-contained and offline-readable: no remote fonts, scripts, images, or chart dependencies.
+- Within the flow section, preserve four independent Top10 lists: industry inflow, industry outflow, concept inflow, concept outflow. Each HTML list declares `data-flow-list` using the corresponding analysis key; the validator checks its actual row count. Industry and concept amounts do not share a ranking universe.
 
 ## Degraded Reports
 

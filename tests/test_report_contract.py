@@ -130,8 +130,26 @@ class VisualReportContractTests(unittest.TestCase):
             "data_quality": ["fixture缺少历史"],
         }
         output = visual.render(data)
+        self.assertIn('data-chart="margin-score-year"', output)
+        self.assertIn("2026年杠杆热度与去杠杆压力", output)
         for label in ("近60日两融余额", "近60日融资杠杆密度", "近60日宽基代表（中证全指）"):
             self.assertIn(label, output)
+
+    def test_margin_score_chart_lists_pressure_peak_date_and_both_scores(self) -> None:
+        rows = [
+            {
+                "trade_date": f"2026-01-{day:02d}",
+                "heat_score": 60 + day,
+                "deleveraging_pressure_score": 42 if day == 10 else 5,
+            }
+            for day in range(1, 21)
+        ]
+        output = visual._margin_score_chart(rows, "2026-01-01", "2026-01-31")
+        self.assertIn("去杠杆压力关键峰值", output)
+        self.assertIn("P1 · 2026-01-10", output)
+        self.assertIn("去杠杆压力 42.0分", output)
+        self.assertIn("同日杠杆热度 70.0分", output)
+        self.assertIn('class="pressure-peak-mark"', output)
 
     def test_complete_delivery_rejects_degraded_core_sections(self) -> None:
         data = contract_payload()

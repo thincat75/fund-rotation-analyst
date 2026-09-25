@@ -11,7 +11,7 @@ Use `work/cache/fund-rotation/cache.sqlite3` for all report versions. The SQLite
 - Frozen Tushare sector history is reusable in `auto` mode after a later health check downgrades the live endpoint, provided the exact requested trading-date set is complete and rows remain under the original provider taxonomy. Label this `cached_validated_history`; do not make a network call merely to replace identical closed-day rows.
 - `akshare-only` is strict: it must not use proxy-derived cached rows even if they are complete. Use `auto` when previously validated proxy history is allowed to recover a closed-day report without a live proxy runtime.
 - Current-day market snapshots and long historical market-denominator series have independent cache states. A current `daily_info` snapshot can prevent repeat network calls for today's density/intensity display, but it cannot satisfy the 500-observation historical baseline required for heat/pressure percentiles.
-- When multiple providers write the same logical series/date, readers deduplicate by `trade_date` and select the newest validated row from the active source route. Duplicate cached providers are audit evidence, not extra historical samples.
+- When multiple providers write the same logical series/date, readers deduplicate by `trade_date`; official Tushare rows win over other providers for the same date, otherwise the newest row wins. Writers store each merged row under the provider recorded in its own payload. Duplicate cached providers are audit evidence, not extra historical samples.
 - Concept flow is requested in five-trading-day windows. If returned rows approach the API limit or expected dates are absent, bisect the window and deduplicate by `trade_date + ts_code`.
 - Cache raw-data version independently from analysis and HTML versions. A scoring or rendering change must not redownload historical data.
 - Record cache hits and API attempts in `api_audit`; exclude real-time ETF calls from historical cache-hit targets.
@@ -35,7 +35,7 @@ Industry/concept flow health additionally requires three identical content finge
 
 Dataset routes in `auto` mode use a health-promoted Tushare source, preferring official Tushare Pro when configured:
 
-- Fund NAV: Tushare `fund_nav` (`adj_nav`, then continuous `accum_nav`) -> AkShare.
+- Fund NAV: Tushare `fund_nav` (`adj_nav` only when every row has it; otherwise the reinvested return derived from `unit_nav` + `accum_nav`; bare `accum_nav` only without unit NAV) -> AkShare. Never mix bases within one series, and read cached NAV one provider at a time.
 - Fund portfolio: Tushare `fund_portfolio` using latest `ann_date <= report.end_date` -> AkShare -> quarterly profile cache.
 - Style indexes: Tushare `index_daily` -> CSIndex -> Tencent -> date-qualified Sina.
 - Industry/concept flow: Tushare `moneyflow_ind_ths` / `moneyflow_cnt_ths` -> AkShare -> same-period cache.
@@ -76,7 +76,7 @@ The legacy list format remains supported. Required field: `code`. Use explicit u
 Fund data:
 
 - `fund_name_em`: fund code/name/type lookup.
-- `fund_open_fund_info_em`: open-end fund NAV and performance details.
+- `fund_open_fund_info_em`: open-end fund NAV and performance details. Request `单位净值走势` first and derive `复权单位净值` from `日增长率`; use `累计净值走势` only as a fallback. Daily growth is compounded only across consecutive sessions, with duplicate dates collapsed and conflicts flagged. Missing intervals or bare unit-NAV estimates invalidate affected scoring intervals. `nav_model_version` separates validated derived NAV from old cached calculations.
 - `fund_etf_fund_info_em`: ETF NAV/market data fallback.
 - `fund_individual_basic_info_xq`: fund profile fallback.
 - `fund_info_ths`: fund profile fallback.
@@ -128,10 +128,10 @@ Listed ETF trading quality:
 - If adjusted ETF prices fail or show suspicious discontinuities, use ETF NAV/IOPV or related feeder-fund NAV as a clearly labeled proxy instead of presenting unadjusted price moves as true returns.
 - `fund_etf_category_sina` and `fund_etf_hist_sina`: price, turnover, and historical-price fallback when Eastmoney ETF quote/history endpoints disconnect.
 - `fund_etf_spot_ths`: same-trading-day unit/cumulative NAV snapshot fallback. Use unit NAV for closing premium only, not cross-period return.
-- ETF return priority is adjusted price, cumulative ETF NAV, cumulative feeder NAV proxy, checked raw/Sina history. A unit-NAV discontinuity with continuous cumulative NAV is a share adjustment, not a loss.
+- ETF return priority is adjusted price, ETF NAV compounded from daily growth, cumulative ETF NAV, unit NAV without an in-week split, IOPV, feeder NAV proxy, checked raw/Sina history. A unit-NAV discontinuity with continuous cumulative NAV is a share adjustment, not a loss.
 - Preserve `fund_daily.amount` and convert its documented 千元 unit to人民币元. Report-end close and turnover must come from the same selected historical source. Closing premium requires close and unit NAV on the identical date.
 - For a split or an absolute weekly return above 15%, compare cumulative NAV against compounded daily growth and any available adjusted-price/feeder source. More than 0.5 percentage-point NAV arithmetic disagreement or more than 1 percentage-point independent-source disagreement is `data_conflict` and removes the ETF from scoring.
-- Quick mode must stop once adjusted ETF price evidence is complete. Do not paginate full-market ETF spot/NAV endpoints for a four-code candidate list, and do not fetch cumulative NAV or feeder NAV unless adjusted history failed. Historical end-day turnover may support liquidity scoring, but an ETF with unconfirmed premium remains observation-only.
+- Quick mode still fetches each candidate ETF's unit NAV history, because the report-end closing premium needs a date-aligned NAV; feeder NAV is fetched only when adjusted history failed. Do not paginate full-market ETF spot endpoints for a four-code candidate list. Historical end-day turnover may support liquidity scoring, but an ETF with unconfirmed premium remains observation-only.
 
 A-share margin leverage:
 

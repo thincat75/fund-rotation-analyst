@@ -11,7 +11,7 @@ from typing import Any
 from data_access import parse_number
 
 
-MODEL_VERSION = "margin-leverage-v1"
+MODEL_VERSION = "margin-leverage-v1.1"
 COMPARABLE_START = "2014-09-22"
 TRADING_DAYS_5Y = 1250
 MIN_PERCENTILE_SAMPLE = 500
@@ -211,16 +211,64 @@ def _sum_values(rows: list[dict[str, Any]], field: str) -> float | None:
     return sum(value for value in values if value is not None) if all(value is not None for value in values) and values else None
 
 
+MAX_DAILY_LEVEL_JUMP = 0.20
+
+
+def _plausible_rows(rows: list[dict[str, Any]], fields: tuple[str, ...]) -> dict[str, dict[str, Any]]:
+    """Index one exchange's rows by date, dropping placeholder zeros and one-day spikes.
+
+    Public sources occasionally publish an all-zero day; summing it with the other
+    exchange fabricates a halved market total. A level value beyond ±20% of the
+    median of the preceding five accepted values is rejected, so the report-end day
+    is checked like any other and a row's validity never depends on later data. A
+    level shift is accepted from its third consistent observation onward, without
+    rewriting earlier rejected dates. Missing levels remain usable for other fields.
+    """
+    ordered = sorted((row for row in rows if row.get("trade_date")), key=lambda row: row["trade_date"])
+    primary = next((field for field in fields if any((parse_number(row.get(field)) or 0) > 0 for row in ordered)), None)
+    if primary is None:
+        return {row["trade_date"]: row for row in ordered}
+    output: dict[str, dict[str, Any]] = {}
+    accepted: list[float] = []
+    pending: list[tuple[dict[str, Any], float]] = []
+    for row in ordered:
+        value = parse_number(row.get(primary))
+        if value is None:
+            output[row["trade_date"]] = row
+            continue
+        if value <= 0:
+            continue
+        if len(accepted) >= 3 and abs(value / median(accepted[-5:]) - 1) > MAX_DAILY_LEVEL_JUMP:
+            pending.append((row, value))
+            pending_median = median(item[1] for item in pending[-3:])
+            if len(pending) >= 3 and all(abs(item[1] / pending_median - 1) <= MAX_DAILY_LEVEL_JUMP for item in pending[-3:]):
+                accepted = [item[1] for item in pending[-3:]]
+                output[row["trade_date"]] = row
+                pending = []
+            continue
+        pending = []
+        output[row["trade_date"]] = row
+        accepted.append(value)
+    return output
+
+
+def _within_sessions(earlier: Any, later: Any, sessions: int) -> bool:
+    """Reject change windows stretched by missing trading days."""
+    try:
+        gap = (dt.date.fromisoformat(str(later)[:10]) - dt.date.fromisoformat(str(earlier)[:10])).days
+    except ValueError:
+        return True
+    # About seven calendar days per five sessions, plus room for exchange holidays.
+    return gap <= sessions * 7 / 5 + 15
+
+
 def combine_exchanges(
     exchange_rows: dict[str, list[dict[str, Any]]],
     fields: tuple[str, ...],
     *,
     required: tuple[str, ...] = ("SSE", "SZSE"),
 ) -> list[dict[str, Any]]:
-    by_exchange = {
-        exchange: {row["trade_date"]: row for row in rows if row.get("trade_date")}
-        for exchange, rows in exchange_rows.items()
-    }
+    by_exchange = {exchange: _plausible_rows(rows, fields) for exchange, rows in exchange_rows.items()}
     common = set.intersection(*(set(by_exchange.get(exchange, {})) for exchange in required)) if required else set()
     output = []
     for day in sorted(common):
@@ -248,6 +296,8 @@ def validate_margin_identity(rows: list[dict[str, Any]], tolerance: float = 0.00
 def _percent_change(rows: list[dict[str, Any]], field: str, sessions: int) -> float | None:
     if len(rows) <= sessions:
         return None
+    if not _within_sessions(rows[-sessions - 1].get("trade_date"), rows[-1].get("trade_date"), sessions):
+        return None
     current = parse_number(rows[-1].get(field))
     previous = parse_number(rows[-sessions - 1].get(field))
     if current is None or previous in {None, 0}:
@@ -265,6 +315,8 @@ def percentile_rank(values: list[float], current: float, *, minimum: int = MIN_P
 def _rolling_changes(rows: list[dict[str, Any]], field: str, sessions: int) -> list[float]:
     output = []
     for index in range(sessions, len(rows)):
+        if not _within_sessions(rows[index - sessions].get("trade_date"), rows[index].get("trade_date"), sessions):
+            continue
         current = parse_number(rows[index].get(field))
         previous = parse_number(rows[index - sessions].get(field))
         if current is not None and previous not in {None, 0}:
@@ -371,6 +423,8 @@ def _historical_comparisons(
         intensity_peak = max(intensity_rows, key=lambda row: row["financing_buy_to_turnover"], default=None)
         growth20 = []
         for index in range(20, len(selected)):
+            if not _within_sessions(selected[index - 20].get("trade_date"), selected[index].get("trade_date"), 20):
+                continue
             current_financing = parse_number(selected[index].get("financing_balance"))
             prior_financing = parse_number(selected[index - 20].get("financing_balance"))
             if current_financing is not None and prior_financing not in {None, 0}:
@@ -425,9 +479,14 @@ def analyze_margin_leverage(
     *,
     cutoff: str,
     concentration: dict[str, Any] | None = None,
+    include_year_score_series: bool = False,
 ) -> dict[str, Any]:
-    exchanges = raw.get("exchanges") or {}
-    market_exchanges = raw.get("market_daily") or {}
+    # Cut off before quality filtering: later observations must not validate an
+    # earlier anomaly, including during current-year score replay.
+    exchanges = {key: [row for row in rows if str(row.get("trade_date") or "") <= cutoff]
+                 for key, rows in (raw.get("exchanges") or {}).items()}
+    market_exchanges = {key: [row for row in rows if str(row.get("trade_date") or "") <= cutoff]
+                       for key, rows in (raw.get("market_daily") or {}).items()}
     combined_margin = combine_exchanges(
         {key: value for key, value in exchanges.items() if key in {"SSE", "SZSE"}},
         ("financing_balance", "financing_buy", "financing_repay", "lending_balance", "margin_balance"),
@@ -463,8 +522,11 @@ def analyze_margin_leverage(
             "deleveraging_pressure": {"score": None, "label": "数据不足", "coverage": 0},
             "regime": {"label": "数据不足", "explanation": "沪深两融汇总数据不足。"},
             "historical_comparisons": [],
+            "score_series_year": [],
+            "score_series_year_start": f"{cutoff[:4]}-01-01",
+            "score_series_year_end": cutoff,
             "concentration": concentration or {},
-            "policy_events": POLICY_EVENTS,
+            "policy_events": [event for event in POLICY_EVENTS if event["date"] <= cutoff],
             "data_quality": ["沪深任一市场缺失时不发布A股汇总和评分"],
         }
 
@@ -541,6 +603,12 @@ def analyze_margin_leverage(
     }
     pressure_score, pressure_coverage = _weighted_score(pressure_components, set())
     status = "complete" if current_ratio and not identity_errors and heat_score is not None and pressure_score is not None else "partial"
+    # SZSE publishes margin totals a session later than SSE, so a report built right after
+    # the cutoff may only have the combined series up to the previous session.
+    margin_lag_note = None
+    if current_margin["trade_date"] < cutoff:
+        status = "partial"
+        margin_lag_note = f"沪深两融合并数据截至{current_margin['trade_date']}（深交所通常在下一交易日披露），早于报告截止日{cutoff}"
     regime_label, regime_explanation = _regime(heat_score, pressure_score)
     if heat_score is not None and pressure_score is not None and density_pct is not None and intensity_pct is not None:
         if density_pct >= 90 and intensity_pct < 70:
@@ -569,8 +637,10 @@ def analyze_margin_leverage(
     ratio_start = ratio_rows[0]["trade_date"] if ratio_rows else None
     ratio_end = ratio_rows[-1]["trade_date"] if ratio_rows else None
     full_ratio_history = bool(ratio_start and ratio_start <= "2014-09-30")
-    north = (exchanges.get("BSE") or [])[-1] if exchanges.get("BSE") else None
+    north = max(exchanges.get("BSE") or [], key=lambda row: row["trade_date"], default=None)
     quality = []
+    if margin_lag_note:
+        quality.append(margin_lag_note)
     if identity_errors:
         quality.append(f"{len(identity_errors)}个交易日的两融恒等式偏差超过0.1%")
     if current_ratio is None:
@@ -594,6 +664,32 @@ def analyze_margin_leverage(
         quality.append(f"中证全指历史不可用，近60日宽基轨迹与历史回撤暂以{broad_index_name}替代并明确标注")
     if concentration_pct is None:
         quality.append("未取得Top100融资集中度，热度按其余85%权重计算")
+    year_start = f"{cutoff[:4]}-01-01"
+    year_score_series = []
+    if include_year_score_series:
+        year_days = [
+            row["trade_date"] for row in ratio_rows
+            if year_start <= row["trade_date"] <= cutoff
+        ]
+        for day in year_days:
+            snapshot = analyze_margin_leverage(
+                raw,
+                style_records,
+                cutoff=day,
+                concentration=None,
+                include_year_score_series=False,
+            )
+            heat_value = parse_number((snapshot.get("heat") or {}).get("score"))
+            pressure_value = parse_number((snapshot.get("deleveraging_pressure") or {}).get("score"))
+            if heat_value is None and pressure_value is None:
+                continue
+            year_score_series.append({
+                "trade_date": day,
+                "heat_score": heat_value,
+                "deleveraging_pressure_score": pressure_value,
+                "heat_coverage": (snapshot.get("heat") or {}).get("coverage"),
+                "pressure_coverage": (snapshot.get("deleveraging_pressure") or {}).get("coverage"),
+            })
     return {
         "model_version": MODEL_VERSION,
         "scope": "SSE+SZSE",
@@ -670,6 +766,9 @@ def analyze_margin_leverage(
         },
         "regime": {"label": regime_label, "explanation": regime_explanation},
         "historical_comparisons": _historical_comparisons(display_series, current, broad_index_series),
+        "score_series_year": year_score_series,
+        "score_series_year_start": year_start,
+        "score_series_year_end": cutoff,
         "concentration": concentration or {},
         "policy_events": [event for event in POLICY_EVENTS if event["date"] <= cutoff],
         "series": display_series[-60:],

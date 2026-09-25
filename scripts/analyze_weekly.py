@@ -15,7 +15,7 @@ from typing import Any
 from report_contract import MANDATORY_SECTION_ORDER, REPORT_FORMAT_VERSION
 
 from cache_store import stable_hash
-from data_access import holdings_hash, holdings_metadata, load_json, normalize_holdings, parse_number, write_json
+from data_access import holdings_hash, holdings_metadata, load_json, nav_interval_issue, normalize_holdings, parse_number, write_json
 from margin_leverage import analyze_margin_leverage, build_three_week_margin
 from three_week_analysis import build_three_week_analysis
 
@@ -33,14 +33,20 @@ NON_ACTIONABLE_CONCEPT_TOKENS = {
 }
 THEME_KEYWORDS = {
     "半导体设备/材料": ["半导体", "芯片", "集成电路", "先进封装", "中微公司", "北方华创", "拓荆科技", "华海清科"],
-    "AI光模块/通信": ["光模块", "通信", "CPO", "新易盛", "中际旭创", "天孚通信", "长飞光纤"],
-    "PCB/AI服务器": ["PCB", "服务器", "沪电股份", "胜宏科技", "生益科技", "深南电路"],
+    # Matched against disclosed holding names, fund names and user tags only. Industry
+    # allocation labels such as "50通信服务" or CSRC "计算机、通信和其他电子设备制造业"
+    # are too broad and must not assign a theme.
+    "AI光模块/通信": ["光模块", "CPO", "通信设备", "新易盛", "中际旭创", "天孚通信", "长飞光纤", "源杰科技", "亨通光电", "光迅科技", "华工科技", "长芯博创", "永鼎股份", "太辰光", "剑桥科技"],
+    "PCB/AI服务器": ["PCB", "服务器", "沪电股份", "胜宏科技", "生益科技", "深南电路", "东山精密", "鼎泰高科", "宏和科技", "景旺电子", "工业富联", "浪潮信息", "华正新材", "南亚新材", "金安国纪", "世运电路", "奥士康", "崇达技术", "兴森科技"],
     "创新药/医药": ["创新药", "医药", "医疗", "CXO"],
     "红利价值": ["红利", "低波", "银行", "煤炭", "股息"],
     "新能源": ["新能源", "光伏", "储能", "电池"],
-    "港股/海外科技": ["港股", "恒生", "互联网", "QDII", "海外"],
+    # "QDII"/"海外" alone also match oil, commodity and multi-asset QDII funds.
+    "港股/海外科技": ["港股科技", "港股互联网", "恒生科技", "中概互联", "海外科技", "全球科技", "美国科技"],
 }
 HIGH_VOLATILITY_THEMES = {"半导体设备/材料", "AI光模块/通信", "PCB/AI服务器", "新能源"}
+# Report-end ETF turnover below this is too thin for replacement observation.
+MIN_ETF_TURNOVER = 10_000_000
 SCORE_COMPONENT_LABELS = {
     "weekly_performance": "本周收益横向排名",
     "one_month_trend": "近1月趋势",
@@ -136,6 +142,21 @@ def max_drawdown(series: list[tuple[dt.date, float]], end: dt.date, days: int = 
     return worst
 
 
+def is_next_weekday_session(previous: dt.date, later: dt.date) -> bool:
+    """True when ``later`` follows ``previous`` with only weekend days in between."""
+    return later > previous and all(
+        (previous + dt.timedelta(days=offset)).weekday() >= 5 for offset in range(1, (later - previous).days)
+    )
+
+
+def months_before(day: dt.date, months: int) -> dt.date:
+    """Same calendar day ``months`` earlier, clamped to month end (近1月/近3月 convention)."""
+    year, month_zero = divmod(day.year * 12 + day.month - 1 - months, 12)
+    month_start = dt.date(year, month_zero + 1, 1)
+    next_month = dt.date(year + (month_zero + 1) // 12, (month_zero + 1) % 12 + 1, 1)
+    return min(month_start + dt.timedelta(days=day.day - 1), next_month - dt.timedelta(days=1))
+
+
 def series_metrics(records: list[dict[str, Any]], week: dict[str, Any], value_priority: list[str] | None = None) -> dict[str, Any]:
     series = extract_series(records, value_priority)
     baseline_day = parse_day(week.get("baseline_date"))
@@ -152,9 +173,19 @@ def series_metrics(records: list[dict[str, Any]], week: dict[str, Any], value_pr
     if baseline_lag > 7:
         return {"data_status": "insufficient_data", "week_return": None, "warning": f"baseline is stale by {baseline_lag} days"}
     week_values = [value for day, value in bounded if baseline[0] <= day <= latest[0]]
-    one_month = return_between(bounded, end_day - dt.timedelta(days=30), end_day)
-    three_month = return_between(bounded, end_day - dt.timedelta(days=90), end_day)
+    one_month = return_between(bounded, months_before(end_day, 1), end_day)
+    three_month = return_between(bounded, months_before(end_day, 3), end_day)
     status = "ok" if latest[0] == end_day else "stale"
+    derived = value_priority is None or "分析净值" in value_priority or "复权单位净值" in value_priority
+    if derived:
+        issue = nav_interval_issue(records, baseline[0], end_day)
+        if issue:
+            return {"data_status": "insufficient_data", "week_return": None,
+                    "warning": issue, "latest_date": latest[0].isoformat()}
+        if nav_interval_issue(records, months_before(end_day, 1), end_day):
+            one_month = None
+        if nav_interval_issue(records, months_before(end_day, 3), end_day):
+            three_month = None
     return {
         "data_status": status,
         "baseline_date": baseline[0].isoformat(),
@@ -165,9 +196,41 @@ def series_metrics(records: list[dict[str, Any]], week: dict[str, Any], value_pr
         "week_return": (latest[1] / baseline[1] - 1) * 100,
         "one_month": one_month,
         "three_month": three_month,
-        "max_drawdown_1y": max_drawdown(bounded, end_day),
+        "max_drawdown_1y": None if derived and nav_interval_issue(records, end_day - dt.timedelta(days=365), end_day) else max_drawdown(bounded, end_day),
         "week_range": (max(week_values) / min(week_values) - 1) * 100 if week_values and min(week_values) > 0 else None,
     }
+
+
+# A holdings-based theme needs at least this share of NAV across the disclosed top-ten
+# holdings, so one small position cannot define a fund's theme.
+MIN_THEME_HOLDING_WEIGHT = 10.0
+
+
+def holding_theme_weights(latest_holdings: list[dict[str, Any]]) -> dict[str, float]:
+    """Sum 占净值比例 of disclosed holdings whose names match each theme's keywords."""
+    weights: dict[str, float] = {}
+    seen: set[str] = set()
+    for row in latest_holdings:
+        name = str(row.get("股票名称") or row.get("名称") or "")
+        share = parse_number(row.get("占净值比例"))
+        # Some sources list the same position twice (e.g. A/H share codes of one listing).
+        key = f"{name}:{share}"
+        if not name or share is None or key in seen:
+            continue
+        seen.add(key)
+        for theme, words in THEME_KEYWORDS.items():
+            if any(word.lower() in name.lower() for word in words):
+                weights[theme] = round(weights.get(theme, 0.0) + share, 2)
+    return weights
+
+
+def holding_based_themes(evidence: dict[str, Any], *fallback_texts: Any) -> tuple[list[str], dict[str, float]]:
+    """Prefer disclosed holdings; name-only inference is a fallback, not corroboration."""
+    if not evidence.get("latest_holdings"):
+        return infer_themes(*fallback_texts), {}
+    weights = holding_theme_weights(evidence["latest_holdings"])
+    themes = [theme for theme, share in weights.items() if share >= MIN_THEME_HOLDING_WEIGHT]
+    return sorted(set(themes)) or ["未识别"], weights
 
 
 def infer_themes(*texts: Any) -> list[str]:
@@ -269,10 +332,19 @@ def analyze_funds(data: dict[str, Any], holdings: list[dict[str, Any]], portfoli
             warnings.append(f"{code} {holding.get('name') or ''}: {metrics['warning']}")
         detail, wrapper = profile_detail(data, code)
         evidence = profile_evidence(detail)
-        inferred = infer_themes(evidence["holding_text"], evidence["industry_text"], holding.get("name"), " ".join(holding.get("tags") or []))
+        inferred, theme_weights = holding_based_themes(evidence, holding.get("name"), " ".join(holding.get("tags") or []))
         themes = sorted(set((holding.get("tags") or []) + ([] if inferred == ["未识别"] and holding.get("tags") else inferred)))
         product_type = classify_product(str(holding.get("name") or ""), evidence["declared_type"])
         risk_flags = fund_risk_flags(product_type, evidence["fund_size"], evidence["turnover"])
+        nav_records = (data.get("funds") or {}).get(code, {}).get("nav") or []
+        end_day = parse_day((data.get("week") or {}).get("end_date"))
+        if end_day and any(
+            row.get("nav_quality_flag")
+            and (nav_day := parse_day(row.get("净值日期") or row.get("日期")))
+            and end_day - dt.timedelta(days=365) <= nav_day <= end_day
+            for row in nav_records
+        ):
+            risk_flags = list(risk_flags) + ["部分净值缺少日增长率，收益按单位净值比值估算"]
         rows.append(
             {
                 "code": code,
@@ -280,7 +352,8 @@ def analyze_funds(data: dict[str, Any], holdings: list[dict[str, Any]], portfoli
                 "current_weight": round(weights.get(code, 0), 6),
                 "is_core": bool(holding.get("is_core")),
                 "themes": themes or ["未识别"],
-                "theme_basis": "季度持仓/行业配置" if evidence["holding_text"] or evidence["industry_text"] else "名称/用户标签",
+                "theme_holding_weights": theme_weights,
+                "theme_basis": "季度持仓" if evidence["holding_text"] else "名称/用户标签（缺少季度持仓）",
                 "profile_status": ("partial_profile" if detail and not (evidence["holding_text"] or evidence["industry_text"]) else wrapper.get("profile_status")) or ("missing" if not detail else "ok"),
                 "fund_size": evidence["fund_size"],
                 "turnover": evidence["turnover"],
@@ -288,7 +361,7 @@ def analyze_funds(data: dict[str, Any], holdings: list[dict[str, Any]], portfoli
                 "disclosure_period": evidence["disclosure_period"],
                 "candidate_kind": "fund",
                 "product_evidence_available": bool(evidence["profile_rows"]),
-                "theme_evidence_available": bool(evidence["holding_text"] or evidence["industry_text"] or product_type == "被动指数/ETF联接"),
+                "theme_evidence_available": bool(evidence["holding_text"] or product_type == "被动指数/ETF联接"),
                 "quality_flags": risk_flags,
                 **metrics,
             }
@@ -338,18 +411,29 @@ def period_value(row: dict[str, Any], period: str, kind: str) -> float | None:
 
 
 def flow_status(today: float | None, five: float | None, ten: float | None) -> str:
+    """Label persistence from the multi-day windows used by the 5-day rankings.
+
+    The single report-end day only substitutes for a missing multi-day window; it
+    cannot overturn same-direction 5-day and 10-day flows.
+    """
     available = [value for value in [today, five, ten] if value is not None]
     if len(available) < 2:
         return "数据不足"
     if sum(value != 0 for value in available) < 2:
         return "数据不足"
-    positives = sum(value > 0 for value in available)
-    negatives = sum(value < 0 for value in available)
-    if today is not None and today > 0 and positives >= 2:
-        return "持续流入"
-    if today is not None and today < 0 and negatives >= 2:
-        return "持续流出"
-    if today is not None and today > 0:
+    longer = ten if ten is not None else today
+    shorter = five if five is not None else today
+    if five is not None and longer is not None:
+        if five > 0 and longer > 0:
+            return "持续流入"
+        if five < 0 and longer < 0:
+            return "持续流出"
+    elif five is None and today is not None and ten is not None:
+        if today > 0 and ten > 0:
+            return "持续流入"
+        if today < 0 and ten < 0:
+            return "持续流出"
+    if (shorter or 0) > 0 or (today or 0) > 0:
         return "短线脉冲"
     return "分歧"
 
@@ -449,7 +533,8 @@ def enrich_flows_with_history(flows: dict[str, dict[str, Any]], sectors: dict[st
 def flow_status_reason(status: str, values: dict[str, Any]) -> str:
     available = {period: values.get(period) for period in ["今日", "5日", "10日"] if values.get(period) is not None}
     missing = [period for period in ["今日", "5日", "10日"] if values.get(period) is None]
-    sign_text = "、".join(f"{period}{'流入' if value > 0 else '流出' if value < 0 else '持平'}" for period, value in available.items())
+    # "今日" here is the single session at the flow cutoff, not the collection day.
+    sign_text = "、".join(f"{'单日' if period == '今日' else period}{'流入' if value > 0 else '流出' if value < 0 else '持平'}" for period, value in available.items())
     if status == "数据冲突":
         return "官方5日排名与逐日历史聚合方向相反，停止趋势判断"
     if status == "数据不足":
@@ -460,7 +545,13 @@ def flow_status_reason(status: str, values: dict[str, Any]) -> str:
             direction = "净流入" if value > 0 else "净流出" if value < 0 else "持平"
             return f"单周期证据：仅有{period}累计{direction}；缺少{'、'.join(missing)}，无法判断资金持续性"
         return f"无足够资金周期；缺少{'、'.join(missing)}，无法判断资金持续性"
-    return f"{status}：{sign_text}"
+    today = values.get("今日")
+    divergence = (
+        "（报告期末日方向相反）"
+        if today is not None and ((status == "持续流入" and today < 0) or (status == "持续流出" and today > 0))
+        else ""
+    )
+    return f"{status}：{sign_text}{divergence}"
 
 
 def portfolio_theme_context(portfolio: dict[str, Any]) -> tuple[Counter[str], dict[str, list[str]], dict[str, float]]:
@@ -473,7 +564,9 @@ def portfolio_theme_context(portfolio: dict[str, Any]) -> tuple[Counter[str], di
                 continue
             counter[theme] += 1
             names.setdefault(theme, []).append(fund["name"])
-            weights[theme] = weights.get(theme, 0) + fund.get("current_weight", 0)
+            # Look-through: a holdings-based theme counts only its disclosed share of NAV.
+            share = (fund.get("theme_holding_weights") or {}).get(theme)
+            weights[theme] = weights.get(theme, 0) + fund.get("current_weight", 0) * (min(share, 100.0) / 100 if share is not None else 1.0)
     return counter, names, weights
 
 
@@ -776,7 +869,7 @@ def top_weekly_funds(data: dict[str, Any]) -> list[dict[str, Any]]:
             evidence = profile_evidence(detail)
             profile_rows = evidence["profile_rows"]
             size, turnover = evidence["fund_size"], evidence["turnover"]
-            themes = infer_themes(evidence["holding_text"], evidence["industry_text"], row.get(name_key))
+            themes, _ = holding_based_themes(evidence, row.get(name_key))
             fund_name = str(row.get(name_key))
             product_type = classify_product(fund_name, evidence["declared_type"])
             passive = product_type == "被动指数/ETF联接"
@@ -793,12 +886,14 @@ def top_weekly_funds(data: dict[str, Any]) -> list[dict[str, Any]]:
                     "fund_size": size,
                     "turnover": turnover,
                     "product_type": product_type,
-                    "theme_basis": "季度持仓/行业配置" if evidence["holding_text"] or evidence["industry_text"] else "基金名称",
+                    "theme_basis": "季度持仓" if evidence["holding_text"] else "基金名称",
                     "product_evidence_available": bool(profile_rows),
-                    "theme_evidence_available": bool(evidence["holding_text"] or evidence["industry_text"] or passive),
+                    "theme_evidence_available": bool(evidence["holding_text"] or passive),
                     "disclosure_period": evidence["disclosure_period"],
                     "quality_flags": risk_flags,
                     "return_basis": "基金排行收益字段",
+                    "return_period_aligned": False,
+                    "source_date": row_text(row, ["日期", "净值日期"]),
                 }
             )
     return sorted(output, key=lambda item: item["week_return"], reverse=True)[:20]
@@ -823,13 +918,47 @@ def has_price_discontinuity(records: list[dict[str, Any]], threshold: float = 25
     return False
 
 
+def records_in_week(records: list[dict[str, Any]], week: dict[str, Any]) -> list[dict[str, Any]]:
+    """Rows dated from the week's baseline through its cutoff.
+
+    Splits and price jumps are judged only here; the full history would otherwise
+    reject a series because of a corporate action months earlier.
+    """
+    baseline_day, end_day = parse_day(week.get("baseline_date")), parse_day(week.get("end_date"))
+    if not baseline_day or not end_day:
+        return []
+    return [
+        row for row in records
+        if (day := parse_day(row_text(row, ["净值日期", "日期", "date", "trade_date"]))) and baseline_day <= day <= end_day
+    ]
+
+
+def without_split_period_returns(
+    metrics: dict[str, Any], records: list[dict[str, Any]], week: dict[str, Any], priority: list[str],
+) -> dict[str, Any]:
+    """For unadjusted series, drop 1-month/3-month returns whose window contains a discontinuity."""
+    end_day = parse_day(week.get("end_date"))
+    if not end_day:
+        return metrics
+    output = dict(metrics)
+    for key, months in (("one_month", 1), ("three_month", 3)):
+        start = months_before(end_day, months)
+        window = [
+            row for row in records
+            if (day := parse_day(row_text(row, ["净值日期", "日期", "date", "trade_date"]))) and start <= day <= end_day
+        ]
+        if output.get(key) is not None and has_price_discontinuity(window, value_priority=priority):
+            output[key] = None
+    return output
+
+
 def _select_etf_return_evidence(etf_data: dict[str, Any], code: str, week: dict[str, Any]) -> dict[str, Any]:
     history = (etf_data.get("history") or {}).get(code, {})
     rejected_flags = []
     price_priority = ["收盘", "close", "最新价"]
     hfq = series_metrics(history.get("hfq") or [], week, price_priority)
     qfq = series_metrics(history.get("qfq") or [], week, price_priority)
-    if hfq.get("week_return") is not None and not has_price_discontinuity(history.get("hfq") or [], value_priority=price_priority):
+    if hfq.get("week_return") is not None and not has_price_discontinuity(records_in_week(history.get("hfq") or [], week), value_priority=price_priority):
         flags = []
         if qfq.get("week_return") is not None and abs(hfq["week_return"] - qfq["week_return"]) > 2:
             flags.append("前后复权差异较大")
@@ -838,15 +967,25 @@ def _select_etf_return_evidence(etf_data: dict[str, Any], code: str, week: dict[
         rejected_flags.append("后复权序列异常断点")
 
     nav_records = (etf_data.get("nav") or {}).get(code) or []
-    cumulative = series_metrics(nav_records, week, ["累计净值", "复权净值"])
+    # Corporate actions matter only inside the measured week. The full NAV history
+    # would otherwise flag a split from months earlier as a current-week event.
+    week_nav = records_in_week(nav_records, week)
     unit = series_metrics(nav_records, week, ["单位净值"])
-    unit_split = unit.get("week_return") is not None and has_price_discontinuity(nav_records, value_priority=["单位净值"])
-    cumulative_ok = cumulative.get("week_return") is not None and not has_price_discontinuity(nav_records, value_priority=["累计净值", "复权净值"])
+    unit_split = unit.get("week_return") is not None and has_price_discontinuity(week_nav, value_priority=["单位净值"])
+    # Published daily growth already reflects distributions and share splits, which
+    # accumulated NAV does not reinvest.
+    if any(row.get("nav_basis") == "日增长率复权单位净值" for row in nav_records):
+        adjusted_nav = series_metrics(nav_records, week, ["分析净值", "复权单位净值"])
+        if adjusted_nav.get("week_return") is not None and not has_price_discontinuity(week_nav, value_priority=["分析净值", "复权单位净值"]):
+            flags = ["份额折算"] if unit_split else []
+            return {**adjusted_nav, "return_basis": "ETF复权净值（日增长率）", "nav_basis": "日增长率复权单位净值", "split_detected": unit_split, "quality_flags": flags}
+    cumulative = series_metrics(nav_records, week, ["累计净值", "复权净值"])
+    cumulative_ok = cumulative.get("week_return") is not None and not has_price_discontinuity(week_nav, value_priority=["累计净值", "复权净值"])
     if cumulative_ok:
         flags = ["份额折算"] if unit_split else []
         return {**cumulative, "return_basis": "ETF累计净值", "nav_basis": "累计净值", "split_detected": unit_split, "quality_flags": flags}
     if unit.get("week_return") is not None and not unit_split:
-        return {**unit, "return_basis": "ETF单位净值（无折算）", "nav_basis": "单位净值", "split_detected": False, "quality_flags": []}
+        return {**without_split_period_returns(unit, nav_records, week, ["单位净值"]), "return_basis": "ETF单位净值（无折算）", "nav_basis": "单位净值", "split_detected": False, "quality_flags": []}
     if unit_split:
         rejected_flags.append("ETF单位净值异常断点")
 
@@ -859,20 +998,22 @@ def _select_etf_return_evidence(etf_data: dict[str, Any], code: str, week: dict[
 
     feeder = (etf_data.get("feeder_nav") or {}).get(code) or {}
     feeder_records = feeder.get("records") or []
-    feeder_metrics = series_metrics(feeder_records, week, ["累计净值", "单位净值"])
-    if feeder_metrics.get("week_return") is not None and not has_price_discontinuity(feeder_records, value_priority=["累计净值", "单位净值"]):
-        return {**feeder_metrics, "return_basis": f"联接基金{feeder.get('feeder_code')}累计净值代理", "nav_basis": "联接基金累计净值", "split_detected": False, "quality_flags": ["代理收益"]}
+    feeder_priority = ["分析净值", "累计净值", "单位净值"]
+    feeder_metrics = series_metrics(feeder_records, week, feeder_priority)
+    if feeder_metrics.get("week_return") is not None and not has_price_discontinuity(records_in_week(feeder_records, week), value_priority=feeder_priority):
+        basis_label = "复权净值" if any(row.get("nav_basis") == "日增长率复权单位净值" for row in feeder_records) else "累计净值"
+        return {**feeder_metrics, "return_basis": f"联接基金{feeder.get('feeder_code')}{basis_label}代理", "nav_basis": f"联接基金{basis_label}", "split_detected": False, "quality_flags": ["代理收益"]}
     if feeder_metrics.get("week_return") is not None:
         rejected_flags.append("联接基金净值异常断点")
 
     raw = history.get("none") or []
     raw_metrics = series_metrics(raw, week, price_priority)
-    if raw_metrics.get("week_return") is not None and not has_price_discontinuity(raw, value_priority=price_priority):
-        return {**raw_metrics, "return_basis": "未复权价格（已检查断点）", "quality_flags": []}
+    if raw_metrics.get("week_return") is not None and not has_price_discontinuity(records_in_week(raw, week), value_priority=price_priority):
+        return {**without_split_period_returns(raw_metrics, raw, week, price_priority), "return_basis": "未复权价格（已检查断点）", "quality_flags": []}
     sina = (etf_data.get("history_sina") or {}).get(code) or []
     sina_metrics = series_metrics(sina, week, price_priority)
-    if sina_metrics.get("week_return") is not None and not has_price_discontinuity(sina, value_priority=price_priority):
-        return {**sina_metrics, "return_basis": "新浪历史价格（已检查断点）", "quality_flags": ["备用行情源"]}
+    if sina_metrics.get("week_return") is not None and not has_price_discontinuity(records_in_week(sina, week), value_priority=price_priority):
+        return {**without_split_period_returns(sina_metrics, sina, week, price_priority), "return_basis": "新浪历史价格（已检查断点）", "quality_flags": ["备用行情源"]}
     flags = rejected_flags + (["复权口径待确认"] if raw_metrics.get("week_return") is not None or sina_metrics.get("week_return") is not None else [])
     return {"data_status": "insufficient_data", "week_return": None, "one_month": None, "three_month": None, "return_basis": "不可确认", "quality_flags": flags}
 
@@ -882,16 +1023,23 @@ def _compound_reported_growth(records: list[dict[str, Any]], week: dict[str, Any
     end = parse_day(week.get("end_date"))
     if not start or not end:
         return None
-    values = []
+    expected = {parse_day(day) for day in week.get("trading_dates") or []}
+    expected = {day for day in expected if day and start <= day <= end}
+    if not expected:
+        expected = {start + dt.timedelta(days=i) for i in range((end - start).days + 1)
+                    if (start + dt.timedelta(days=i)).weekday() < 5}
+    values: dict[dt.date, float] = {}
     for row in records:
         day = parse_day(row_text(row, ["净值日期", "日期", "date", "trade_date"]))
         growth = row_number(row, ["日增长率", "涨跌幅", "pct_chg"])
         if day and start <= day <= end and growth is not None:
-            values.append(growth)
-    if not values:
+            if day in values and values[day] != growth:
+                return None
+            values[day] = growth
+    if not expected or set(values) != expected:
         return None
     result = 1.0
-    for value in values:
+    for value in values.values():
         result *= 1 + value / 100
     return (result - 1) * 100
 
@@ -913,18 +1061,23 @@ def etf_return_evidence(etf_data: dict[str, Any], code: str, week: dict[str, Any
         return result
 
     nav_records = (etf_data.get("nav") or {}).get(code) or []
+    nav_issue = nav_interval_issue(nav_records, parse_day(week["baseline_date"]), parse_day(week["end_date"]))
+    if nav_issue and str(result.get("return_basis") or "").startswith("ETF"):
+        result.update({"return_confidence": "低", "supports_recommendation": False})
+        result["quality_flags"] = sorted(set(result["quality_flags"] + [nav_issue]))
     history = (etf_data.get("history") or {}).get(code) or {}
     feeder = ((etf_data.get("feeder_nav") or {}).get(code) or {}).get("records") or []
     crosschecks: list[tuple[str, float]] = []
     adjusted = series_metrics(history.get("hfq") or [], week, ["收盘", "close"]).get("week_return")
+    nav_value = series_metrics(nav_records, week, ["分析净值", "复权单位净值", "累计净值", "复权净值"]).get("week_return")
     cumulative = series_metrics(nav_records, week, ["累计净值", "复权净值"]).get("week_return")
-    feeder_value = series_metrics(feeder, week, ["累计净值", "单位净值"]).get("week_return")
+    feeder_value = series_metrics(feeder, week, ["分析净值", "累计净值", "单位净值"]).get("week_return")
     growth_value = _compound_reported_growth(nav_records, week)
     selected_group = "adjusted" if result.get("return_basis") == "后复权价格" else "nav" if str(result.get("return_basis")).startswith("ETF") else "feeder" if str(result.get("return_basis")).startswith("联接基金") else "other"
     for group, label, value in [
         ("adjusted", "复权价格", adjusted),
-        ("nav", "ETF累计净值", cumulative),
-        ("feeder", "联接基金累计净值", feeder_value),
+        ("nav", "ETF净值", nav_value),
+        ("feeder", "联接基金净值", feeder_value),
     ]:
         if group != selected_group and value is not None:
             crosschecks.append((label, float(value)))
@@ -933,7 +1086,13 @@ def etf_return_evidence(etf_data: dict[str, Any], code: str, week: dict[str, Any
     exceptional = bool(corporate_actions) or abs(float(selected)) > 15
     conflict_reasons = []
     if growth_value is not None and cumulative is not None and abs(float(growth_value) - float(cumulative)) > 0.5:
-        conflict_reasons.append(f"每日增长率复合与累计净值相差{abs(float(growth_value) - float(cumulative)):.2f}个百分点")
+        gap = abs(float(growth_value) - float(cumulative))
+        # Accumulated NAV does not reinvest distributions, so a gap against published
+        # growth only invalidates a return that itself rests on accumulated NAV.
+        if result.get("nav_basis") == "累计净值":
+            conflict_reasons.append(f"每日增长率复合与累计净值相差{gap:.2f}个百分点")
+        else:
+            result["quality_flags"] = sorted(set(result["quality_flags"] + ["累计净值未含分红再投资"]))
     if exceptional and crosschecks:
         conflict_reasons.extend(
             f"{label}与主口径相差{abs(value - selected):.2f}个百分点"
@@ -995,11 +1154,17 @@ def analyze_etfs(data: dict[str, Any]) -> list[dict[str, Any]]:
         close_record = endpoint_value(eod_history, end_day, ["原始收盘", "收盘", "close"])
         unit_nav = endpoint_value((etf_data.get("nav") or {}).get(code) or [], end_day, ["单位净值"])
         nav_snapshot = nav_spots.get(code, {})
-        if not unit_nav and nav_snapshot:
+        close_day = close_record[0] if close_record else end_day
+        if (not unit_nav or unit_nav[0] != close_day) and nav_snapshot:
             nav_day = parse_day(row_text(nav_snapshot, ["最新-交易日", "查询日期", "日期"]))
             nav_value = row_number(nav_snapshot, ["最新-单位净值", "当前-单位净值", "单位净值"])
+            previous_value = row_number(nav_snapshot, ["前一日-单位净值"])
             if nav_day and nav_value is not None and end_day and nav_day <= end_day:
                 unit_nav = (nav_day, nav_value)
+            elif nav_day and end_day and previous_value is not None and is_next_weekday_session(end_day, nav_day):
+                # A snapshot collected after the cutoff still carries the cutoff-day NAV
+                # as its previous-day value when only a weekend lies in between.
+                unit_nav = (end_day, previous_value)
         closing_premium = None
         if close_record and unit_nav and close_record[0] == unit_nav[0] and unit_nav[1] > 0:
             closing_premium = (close_record[1] / unit_nav[1] - 1) * 100
@@ -1014,13 +1179,21 @@ def analyze_etfs(data: dict[str, Any]) -> list[dict[str, Any]]:
             flags.append("溢价偏高")
         if live_premium is not None and published_discount is not None and abs(live_premium + published_discount) > 0.2:
             flags.append("折溢价字段不一致")
-        end_history_row = next(
-            (
-                row for row in reversed(eod_history)
-                if parse_day(row_text(row, ["日期", "date", "trade_date"])) == end_day
-            ),
-            {},
-        )
+        # Turnover does not depend on price adjustment, so any report-end row qualifies.
+        turnover_history = eod_history
+        end_history_row: dict[str, Any] = {}
+        for candidate in (eod_history, history.get("hfq") or [], sina_history):
+            matched = next(
+                (
+                    row for row in reversed(candidate)
+                    if parse_day(row_text(row, ["日期", "date", "trade_date"])) == end_day
+                    and row_number(row, ["成交额", "amount"]) is not None
+                ),
+                None,
+            )
+            if matched:
+                end_history_row, turnover_history = matched, candidate
+                break
         price = close_record[1] if close_record else None
         turnover = row_number(end_history_row, ["成交额", "amount"])
         if turnover is None and spot_day and end_day and spot_day == end_day:
@@ -1040,6 +1213,7 @@ def analyze_etfs(data: dict[str, Any]) -> list[dict[str, Any]]:
             evidence.get("supports_recommendation")
             and evidence.get("week_return") is not None
             and turnover is not None
+            and turnover >= MIN_ETF_TURNOVER
             and premium is not None
             and premium < 2
         )
@@ -1065,7 +1239,7 @@ def analyze_etfs(data: dict[str, Any]) -> list[dict[str, Any]]:
                     "报告期末历史收盘价" if close_record else "不可用"
                 ),
                 "turnover_source": (
-                    "新浪ETF历史成交额" if eod_history is sina_history and turnover is not None else
+                    "新浪ETF历史成交额" if turnover_history is sina_history and turnover is not None else
                     "报告期末历史成交额" if turnover is not None else "不可用"
                 ),
                 "eod_quality": {
@@ -1096,7 +1270,19 @@ def analyze_etfs(data: dict[str, Any]) -> list[dict[str, Any]]:
     return sorted(output, key=lambda item: item.get("premium_rate") if item.get("premium_rate") is not None else 999)
 
 
-def percentile_scores(rows: list[dict[str, Any]], key: str) -> dict[str, float]:
+def percentile_scores(rows: list[dict[str, Any]], key: str, reference_rows: list[dict[str, Any]] | None = None) -> dict[str, float]:
+    if reference_rows is not None:
+        # Rows outside the reference pool are placed against it without moving its ranks.
+        reference_codes = {str(row["code"]) for row in reference_rows}
+        output = percentile_scores(reference_rows, key)
+        values = sorted(float(row[key]) for row in reference_rows if row.get(key) is not None)
+        for row in rows:
+            code = str(row["code"])
+            if code in reference_codes or row.get(key) is None:
+                continue
+            value = float(row[key])
+            output[code] = 50.0 if len(values) < 2 else min(100.0, sum(item < value for item in values) / (len(values) - 1) * 100)
+        return output
     valid = sorted([(str(row["code"]), float(row[key])) for row in rows if row.get(key) is not None], key=lambda item: item[1])
     if not valid:
         return {}
@@ -1175,12 +1361,26 @@ def portfolio_fit(themes: list[str], portfolio_theme_counts: Counter[str]) -> fl
     return 65.0
 
 
-def score_rows(rows: list[dict[str, Any]], sectors: dict[str, Any], styles: list[dict[str, Any]], portfolio: dict[str, Any]) -> None:
-    week_percentile = percentile_scores(rows, "week_return")
-    month_percentile = percentile_scores(rows, "one_month")
+def score_rows(
+    rows: list[dict[str, Any]],
+    sectors: dict[str, Any],
+    styles: list[dict[str, Any]],
+    portfolio: dict[str, Any],
+    reference_rows: list[dict[str, Any]] | None = None,
+) -> None:
+    week_percentile = percentile_scores(rows, "week_return", reference_rows)
+    month_percentile = percentile_scores(rows, "one_month", reference_rows)
     theme_counts, _, _ = portfolio_theme_context(portfolio)
     weights = {"weekly_performance": 30, "one_month_trend": 20, "sector_confirmation": 20, "style_alignment": 10, "trading_quality": 10, "portfolio_fit": 10}
     for row in rows:
+        if row.get("return_period_aligned") is False or row.get("return_basis") == "基金排行收益字段":
+            row.update({
+                "score_components": {key: None for key in weights}, "score_coverage": 0,
+                "weekly_score": None, "score_confidence": "低", "score_evidence": [],
+                "score_missing_components": ["按报告期净值计算的收益"],
+                "score_unavailable_reason": "未评分：排行快照未按报告期净值核验，仅作观察信号",
+            })
+            continue
         sector_score, sector_evidence = sector_confirmation(row.get("themes") or [], sectors)
         components = {
             "weekly_performance": week_percentile.get(str(row["code"])),
@@ -1229,6 +1429,8 @@ def compare_and_recommend(
     styles: list[dict[str, Any]],
     etfs: list[dict[str, Any]],
     fund_candidates: list[dict[str, Any]],
+    *,
+    week_complete: bool = True,
 ) -> dict[str, Any]:
     current = portfolio.get("funds") or []
     for row in etfs:
@@ -1240,7 +1442,9 @@ def compare_and_recommend(
         if row.get("code") not in held_codes and row.get("code") not in etf_codes
     ]
     scoring_pool = current + etfs + fund_candidates
-    score_rows(scoring_pool, sectors, styles, portfolio)
+    # Holdings and ETFs are measured over the report week; ranking funds carry a later
+    # 近1周 snapshot, so they are placed against that pool instead of reshaping it.
+    score_rows(scoring_pool, sectors, styles, portfolio, reference_rows=current + etfs)
 
     strong_rows = [row for row in ((sectors.get("industry_return") or [])[:5] + (sectors.get("concept_return") or [])[:5]) if (row.get("week_return") or 0) > 0]
     strong_themes = Counter(theme for row in strong_rows for theme in row.get("exposure_keys") or [])
@@ -1253,7 +1457,10 @@ def compare_and_recommend(
         weak = row.get("weekly_score") is not None and row["weekly_score"] < 45
         negative_trend = row.get("one_month") is not None and row["one_month"] <= -3
         overlap = sorted(set(row.get("themes") or []) & set(strong_themes))
-        if weak:
+        if weak and not week_complete:
+            action = "观察"
+            reason = "有效周度综合分低于45，但报告周尚未结束；进行中周只用于监测，不触发替换动作"
+        elif weak:
             action = "替换候选"
             reason = "有效周度综合分低于45，进入替换观察池"
         elif negative_trend:
@@ -1300,8 +1507,17 @@ def compare_and_recommend(
             continue
         used_candidates.add(candidate["code"])
         gap = round(candidate["weekly_score"] - weak["weekly_score"], 2)
-        execution_ready = candidate.get("candidate_kind") == "fund" or bool(candidate.get("execution_ready"))
+        # Ranking-fund candidates carry a 近1周 snapshot return, not report-period NAV
+        # evidence, so they stay observation-only instead of receiving a first step.
+        is_fund_candidate = candidate.get("candidate_kind") == "fund"
+        execution_ready = not is_fund_candidate and bool(candidate.get("execution_ready"))
         first_step = (0.03 if gap < 15 else 0.05) if execution_ready else None
+        pending_action = "替换观察，执行前按报告期净值复核" if is_fund_candidate else "替换观察，执行前复核实时溢价"
+        pending_reason = (
+            f"候选综合分高出 {gap:.2f} 分，但收益来自近1周排行快照，未按报告期净值核验，仅进入替换观察。"
+            if is_fund_candidate else
+            f"候选综合分高出 {gap:.2f} 分，收盘证据完整；缺少5分钟内实时溢价，仅进入替换观察。"
+        )
         top3.append(
             {
                 "replace_code": weak["code"],
@@ -1322,18 +1538,21 @@ def compare_and_recommend(
                 "risk_flags": candidate.get("quality_flags"),
                 "recommendation_eligible": True,
                 "execution_ready": execution_ready,
-                "action": "小幅分批" if execution_ready else "替换观察，执行前复核实时溢价",
+                "action": "小幅分批" if execution_ready else pending_action,
                 "suggested_first_step_weight": first_step,
                 "reason": (
                     f"候选综合分高出 {gap:.2f} 分，且收盘交易质量与板块证据完整；实时溢价已通过5分钟新鲜度门控。"
-                    if execution_ready else
-                    f"候选综合分高出 {gap:.2f} 分，收盘证据完整；缺少5分钟内实时溢价，仅进入替换观察。"
+                    if execution_ready else pending_reason
                 ),
             }
         )
         if len(top3) >= 3:
             break
 
+    replaced_codes = {row["replace_code"] for row in top3}
+    for row in weak_current:
+        if row["code"] not in replaced_codes:
+            row["decision_reason"] = f"{row['decision_reason']}；暂无通过门槛的替换对象，保持观察池，不形成可执行替换"
     unscored_current = [row for row in current_rows if row.get("weekly_score") is None]
     high_premium_candidates = [
         row for row in etfs
@@ -1342,7 +1561,9 @@ def compare_and_recommend(
     unknown_premium_candidates = [row for row in etfs if row.get("premium_rate") is None]
     execution_pending_candidates = [row for row in etfs if row.get("recommendation_eligible") and not row.get("execution_ready")]
     blockers = []
-    if not weak_current:
+    if not week_complete:
+        blockers.append("报告周尚未结束（进行中），进行中周不能单独触发替换动作")
+    if not weak_current and week_complete:
         if unscored_current:
             blockers.append(f"{len(unscored_current)}只当前基金缺少有效综合分，无法确认应被替换的弱势持仓")
         else:
@@ -1453,6 +1674,7 @@ def main() -> None:
         ((data.get("market") or {}).get("style_indexes") or {}),
         cutoff=(data.get("week") or {}).get("end_date") or dt.date.today().isoformat(),
         concentration=(((data.get("market") or {}).get("margin_raw") or {}).get("concentration") or {}),
+        include_year_score_series=True,
     )
     calibration_path = args.cache_root / "margin_calibration_v1.json"
     if calibration_path.exists():
@@ -1469,7 +1691,10 @@ def main() -> None:
     sectors = analyze_sectors(data, portfolio)
     etfs = analyze_etfs(data)
     weekly_top = top_weekly_funds(data)
-    comparison = compare_and_recommend(portfolio, sectors, styles, etfs, weekly_top)
+    comparison = compare_and_recommend(
+        portfolio, sectors, styles, etfs, weekly_top,
+        week_complete=(data.get("week") or {}).get("completeness") == "complete",
+    )
     analysis_notes = []
     if not sectors.get("industry_return") or not sectors.get("concept_return"):
         analysis_notes.append("板块周收益数据集部分不可用；报告仅展示有真实周期证据的榜单，并披露实际样本范围。")

@@ -10,12 +10,13 @@ from pathlib import Path
 from typing import Any
 
 from data_access import load_json
+from margin_leverage import MODEL_VERSION as MARGIN_MODEL_VERSION
 from report_contract import MANDATORY_SECTION_ORDER, NAV_ITEMS, REPORT_FORMAT_VERSION
 
 
 REQUIRED_SECTIONS = ["kpi", "holdings", "style", "sector-week", "sector-today", "flows", "difference", "proxy", "etf", "replacement", "quality"]
 AUDITABLE_ETF_BASES = {
-    "后复权价格", "ETF累计净值", "ETF单位净值（无折算）", "IOPV同期快照",
+    "后复权价格", "ETF复权净值（日增长率）", "ETF累计净值", "ETF单位净值（无折算）", "IOPV同期快照",
     "未复权价格（已检查断点）", "新浪历史价格（已检查断点）",
 }
 CURRENT_REVISIONS = {"2.2", "2.3", "2.4", "2.5", "2.6", "2.7", "2.8"}
@@ -279,7 +280,7 @@ def validate_analysis(path: Path, require_complete: bool = False) -> dict[str, A
         fail(f"allocation invariants failed: {allocation_validation.get('errors')}")
     if data.get("data_revision") == "2.8":
         margin = (data.get("market") or {}).get("margin_leverage") or {}
-        if margin.get("model_version") != "margin-leverage-v1":
+        if margin.get("model_version") not in {"margin-leverage-v1", MARGIN_MODEL_VERSION}:
             fail("v2.8 margin leverage model/version is missing")
         if margin.get("scope") != "SSE+SZSE" or margin.get("action_policy") != "display_only":
             fail("margin leverage must use SSE+SZSE and remain display_only")
@@ -309,6 +310,22 @@ def validate_analysis(path: Path, require_complete: bool = False) -> dict[str, A
                 fail(f"margin {key} score is outside 0-100")
             if score is not None and float(block.get("coverage") or 0) < 0.75:
                 fail(f"margin {key} score published below 75% evidence coverage")
+        year_series = margin.get("score_series_year") or []
+        available_year_dates = {row.get("trade_date") for row in margin.get("series") or []
+                                if f"{end.year}-01-01" <= str(row.get("trade_date") or "") <= end.isoformat()}
+        if margin.get("status") == "complete" and len(year_series) < min(2, max(1, len(available_year_dates))):
+            fail("complete margin leverage lacks current-year heat/pressure history")
+        expected_year_start = f"{end.year}-01-01"
+        if year_series and margin.get("score_series_year_start") != expected_year_start:
+            fail("margin current-year score chart does not start at report-year January 1")
+        for row in year_series:
+            score_day = parse_day(row.get("trade_date"))
+            if score_day is None or not dt.date(end.year, 1, 1) <= score_day <= end:
+                fail("margin current-year score chart contains an out-of-range date")
+            for field in ("heat_score", "deleveraging_pressure_score"):
+                value = row.get(field)
+                if value is not None and not 0 <= float(value) <= 100:
+                    fail(f"margin current-year {field} is outside 0-100")
         normalization = margin.get("normalization") or {}
         if (normalization.get("financing_to_float_cap") is None or normalization.get("financing_buy_to_turnover") is None) and (margin.get("heat") or {}).get("score") is not None:
             fail("margin heat score published without density and trading intensity")
@@ -433,10 +450,16 @@ def validate_html(path: Path, data: dict[str, Any]) -> None:
             "A股杠杆温度", "当前两融余额", "融资杠杆密度", "融资交易强度",
             "杠杆热度", "去杠杆压力", "滚动5年分位", "历史阶段同口径比较",
             "只作市场环境展示", "低杠杆不代表上涨空间必然较大",
+            "年杠杆热度与去杠杆压力", 'data-chart="margin-score-year"',
             "近60日两融余额", "近60日融资杠杆密度", "近60日宽基代表",
         ]:
             if label not in text:
                 fail(f"HTML margin section does not explain {label}")
+        margin_series = ((data.get("market") or {}).get("margin_leverage") or {}).get("score_series_year") or []
+        if margin_series and "双线同轴 0–100分" not in text:
+            fail("HTML margin score chart lacks its common scale")
+        if not margin_series and "今年逐日热度/压力评分不足" not in text:
+            fail("HTML must explain unavailable current-year margin scores")
     if data.get("report_format_version"):
         if f'<meta name="fund-report-format" content="{REPORT_FORMAT_VERSION}">' not in text:
             fail("HTML does not declare the report format meta tag")
@@ -480,6 +503,14 @@ def validate_html(path: Path, data: dict[str, Any]) -> None:
         count = len(re.findall(fr'data-row="{row_type}"', text))
         if count < minimum:
             fail(f"HTML has {count} {row_type} rows, expected at least {minimum}")
+    sectors = (data.get("market") or {}).get("sector_top10") or {}
+    for key in ("industry_inflow", "industry_outflow", "concept_inflow", "concept_outflow"):
+        blocks = re.findall(fr'<article\b[^>]*data-flow-list="{key}"[^>]*>(.*?)</article>', text, re.S)
+        if len(blocks) != 1:
+            fail(f"HTML must preserve the separate flow list {key}")
+        count = blocks[0].count('data-row="sector"')
+        if count != min(10, len(sectors.get(key) or [])):
+            fail(f"HTML flow list {key} has {count} rows; ranking rows were lost")
     if (data.get("comparison") or {}).get("replacement_status") == "insufficient_evidence" and "decision-gap" not in text:
         fail("HTML does not explain insufficient replacement evidence")
     for internal in [
@@ -491,12 +522,13 @@ def validate_html(path: Path, data: dict[str, Any]) -> None:
     for label in ["当前组合占比", "本周收益", "近1月收益", "近3月收益", "近1年最大回撤", "周度综合分", "建议动作"]:
         if label not in text:
             fail(f"HTML does not label holding field {label}")
-    if data.get("data_revision") in CURRENT_REVISIONS and "组合相关主题估算占比" not in text:
+    has_sector_rows = any(isinstance(rows, list) and rows for rows in sectors.values())
+    if data.get("data_revision") in CURRENT_REVISIONS and has_sector_rows and "组合相关主题估算占比" not in text:
         fail("HTML does not explain sector coverage percentage")
     if data.get("data_revision") in {"2.4", "2.5", "2.6", "2.7", "2.8"}:
-        if 'data-section="sector-today-flow"' not in text or "不参与上周结论" not in text:
+        if 'data-section="sector-today-flow"' not in text or "不参与报告周结论" not in text:
             fail("HTML does not isolate post-period current-day flow")
-        if "报告期5日资金流入" not in text or "亿元" not in text:
+        if "报告期5日资金流入" not in text or (has_sector_rows and "亿元" not in text):
             fail("HTML does not label completed-period flow and units")
         if "收益口径：not_applicable" in text:
             fail("HTML exposes a missing return basis in flow rankings")

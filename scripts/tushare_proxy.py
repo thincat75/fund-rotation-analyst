@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import urlparse
 
-from data_access import df_to_records, is_retryable, load_json, parse_number, wall_clock_timeout, write_json
+from data_access import NAV_MODEL_VERSION, consecutive_nav_dates, df_to_records, is_retryable, load_json, parse_number, wall_clock_timeout, write_json
 
 
 OFFICIAL_PROVIDER = "Tushare Pro 官方"
@@ -196,32 +196,81 @@ def collect_fund_master(
     return matched
 
 
-def normalize_fund_nav(rows: list[dict[str, Any]], cutoff: str | None = None) -> list[dict[str, Any]]:
-    """Normalize NAV with adjusted NAV first and accumulated NAV second."""
-    output = []
+def normalize_fund_nav(rows: list[dict[str, Any]], cutoff: str | None = None, trading_dates: list[dt.date] | None = None) -> list[dict[str, Any]]:
+    """Normalize NAV onto one consistent adjusted basis for the whole series.
+
+    Mixing ``adj_nav`` rows with ``accum_nav`` rows creates artificial jumps, and
+    accumulated NAV ratios understate returns after distributions. Use ``adj_nav``
+    only when every row has it; otherwise derive the reinvested return from the
+    unit/accumulated NAV pair; fall back to accumulated NAV only without unit NAV.
+    """
+    parsed = []
     for row in rows:
         day = str(row.get("nav_date") or row.get("end_date") or row.get("日期") or "")[:10].replace("-", "")
         if not day:
             continue
         if cutoff and day > cutoff.replace("-", ""):
             continue
-        adjusted = parse_number(row.get("adj_nav"))
-        accumulated = parse_number(row.get("accum_nav"))
-        unit = parse_number(row.get("unit_nav"))
-        value = adjusted if adjusted is not None else accumulated
-        basis = "adj_nav" if adjusted is not None else "accum_nav" if accumulated is not None else None
+        parsed.append((
+            f"{day[:4]}-{day[4:6]}-{day[6:8]}",
+            parse_number(row.get("adj_nav")),
+            parse_number(row.get("accum_nav")),
+            parse_number(row.get("unit_nav")),
+            row.get("ann_date"),
+        ))
+    parsed.sort(key=lambda item: item[0])
+    all_adjusted = bool(parsed) and all(adjusted is not None and adjusted > 0 for _, adjusted, _, _, _ in parsed)
+    has_unit_pairs = any(unit is not None and unit > 0 and accumulated is not None for _, _, accumulated, unit, _ in parsed)
+    output = []
+    derived: float | None = None
+    previous_unit: float | None = None
+    previous_accumulated: float | None = None
+    previous_day: str | None = None
+    for day, adjusted, accumulated, unit, ann_date in parsed:
+        quality_flag = None
+        if all_adjusted:
+            value, basis = adjusted, "adj_nav"
+        elif has_unit_pairs:
+            if unit is None or unit <= 0:
+                continue
+            if derived is None or previous_unit is None:
+                derived = unit
+            elif accumulated is not None and previous_accumulated is not None:
+                # accum_nav = unit_nav + cumulative distributions per share.
+                derived *= (accumulated - previous_accumulated + previous_unit) / previous_unit
+            else:
+                # Skipping the row would leave the series stale at the cutoff.
+                derived *= unit / previous_unit
+                quality_flag = "累计净值缺失，按单位净值比值计算"
+            if previous_unit and abs(unit / previous_unit - 1) > 0.25:
+                quality_flag = "净值疑似折算，缺少复权证据"
+            if previous_day:
+                prior = dt.date.fromisoformat(previous_day)
+                current_day = dt.date.fromisoformat(day)
+                if not consecutive_nav_dates(prior, current_day, sorted(set(trading_dates or []))):
+                    quality_flag = quality_flag or "净值日期不连续，区间分红再投资收益待核验"
+            previous_unit, previous_accumulated = unit, accumulated
+            previous_day = day
+            value, basis = derived, "unit_accum_reinvested"
+        elif accumulated is not None and accumulated > 0:
+            value, basis = accumulated, "accum_nav"
+        else:
+            continue
         output.append(
             {
-                "净值日期": f"{day[:4]}-{day[4:6]}-{day[6:8]}",
-                "复权单位净值": adjusted,
+                "净值日期": day,
+                "复权单位净值": adjusted if all_adjusted else (value if basis == "unit_accum_reinvested" else None),
                 "累计净值": accumulated,
                 "单位净值": unit,
                 "分析净值": value,
                 "nav_basis": basis,
-                "ann_date": row.get("ann_date"),
+                "ann_date": ann_date,
+                "series_start_date": parsed[0][0],
+                "nav_model_version": NAV_MODEL_VERSION,
+                **({"nav_quality_flag": quality_flag} if quality_flag else {}),
             }
         )
-    return sorted(output, key=lambda row: row["净值日期"])
+    return output
 
 
 def normalize_fund_portfolio(rows: list[dict[str, Any]], cutoff: str) -> list[dict[str, Any]]:

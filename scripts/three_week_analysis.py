@@ -10,34 +10,45 @@ from pathlib import Path
 from typing import Any
 
 from cache_store import CacheStore, stable_hash
-from data_access import parse_number
+from data_access import nav_interval_issue, parse_number
 
 
 GENERIC_FUND_THEMES = {"主动权益", "混合型", "偏股混合", "质量成长", "LOF", "指数型", "ETF联接"}
 
 # These rules describe disclosed portfolio exposure, not guaranteed real-time holdings.
+# Aliases were checked against THS constituents on 2026-09-15 (leader membership and
+# member industry mix). Tokens starting with "=" must equal the sector name, because a
+# substring would also hit unrelated boards (被动元件, 绿色电力, 参股银行, 煤炭概念).
+# Removed as unsupported: 通信服务, 人工智能/AI应用/云计算/算力, 算力租赁, 其他电子, 专用设备.
 THEME_SECTOR_RULES: dict[str, dict[str, tuple[str, ...]]] = {
     "AI光模块/通信": {
-        "direct": ("通信设备", "通信服务", "光学光电子", "共封装光学", "CPO", "光纤", "铜缆高速连接", "F5G", "5G", "6G"),
-        "indirect": ("人工智能", "AIGC", "ChatGPT", "AI应用", "AI智能体", "云计算", "算力", "英伟达", "华为昇腾"),
+        "direct": ("通信设备", "共封装光学", "CPO", "光纤", "F5G", "5G", "6G"),
+        "indirect": ("英伟达", "东数西算"),
     },
     "PCB/AI服务器": {
-        "direct": ("元件", "PCB", "液冷服务器", "算力租赁", "东数西算"),
-        "indirect": ("计算机设备", "其他电子", "消费电子", "工业互联网", "数据中心", "英伟达"),
+        "direct": ("=元件", "PCB", "铜缆高速连接"),
+        "indirect": ("液冷服务器", "东数西算", "英伟达"),
     },
     "半导体设备/材料": {
-        "direct": ("半导体", "芯片", "集成电路", "光刻", "先进封装", "存储芯片", "MCU", "第三代半导体", "电子化学品"),
-        "indirect": ("专用设备", "国家大基金", "中芯国际"),
+        "direct": ("半导体", "芯片", "集成电路", "先进封装", "存储芯片", "MCU", "第三代半导体"),
+        "indirect": ("电子化学品", "光刻", "国家大基金", "中芯国际"),
     },
     "创新药/医药": {
         "direct": ("创新药", "化学制药", "生物制品", "医疗服务", "医疗器械", "CRO"),
         "indirect": ("医药商业", "智能医疗", "民营医院"),
     },
     "红利价值": {
-        "direct": ("高股息", "银行", "保险", "煤炭", "电力"),
-        "indirect": ("中特估", "公路铁路", "港口航运"),
+        "direct": ("高股息", "=银行", "国有大型银行", "煤炭开采", "=电力", "电信运营商"),
+        "indirect": ("=保险", "中特估", "公路铁路", "港口航运"),
     },
 }
+
+
+def alias_matches(token: str, name: str) -> bool:
+    """A leading "=" requires the exact sector name; otherwise a case-insensitive substring."""
+    if token.startswith("="):
+        return name == token[1:]
+    return token.lower() in name.lower()
 
 
 def parse_day(value: Any) -> dt.date | None:
@@ -151,7 +162,7 @@ def analyze_portfolio(raw: dict[str, Any], portfolio: dict[str, Any], periods: l
     portfolio_returns: dict[str, float | None] = {}
     coverage: dict[str, float] = {}
     for code, content in (raw.get("funds") or {}).items():
-        values = series(content.get("nav") or [], ("累计净值", "复权单位净值", "单位净值", "close"))
+        values = series(content.get("nav") or [], ("分析净值", "复权单位净值", "累计净值", "单位净值", "close"))
         period_values = {}
         for period in periods:
             value, latest = period_return(
@@ -160,6 +171,8 @@ def analyze_portfolio(raw: dict[str, Any], portfolio: dict[str, Any], periods: l
                 parse_day(period["end_date"]),
                 parse_day(period["start_date"]),
             )
+            if nav_interval_issue(content.get("nav") or [], parse_day(period["baseline_date"]), parse_day(period["end_date"])):
+                value = None
             period_values[period["period_id"]] = {"return": value, "latest_date": latest}
         fund_rows.append({"code": code, "name": next((row.get("name") for row in portfolio.get("funds") or [] if row.get("code") == code), code), "weight": weight_by_code.get(code, 0), "periods": period_values})
     for period in periods:
@@ -296,24 +309,30 @@ def sector_portfolio_coverage(name: str, portfolio: dict[str, Any]) -> dict[str,
         fund_name = str(fund.get("name") or fund.get("code") or "未知基金")
         fund_direct = False
         fund_indirect = False
+        fund_matched: set[str] = set()
         for theme in fund.get("themes") or []:
             if theme in GENERIC_FUND_THEMES:
                 continue
             rules = THEME_SECTOR_RULES.get(theme)
             if not rules:
                 continue
-            if any(token.lower() in name.lower() for token in rules["direct"]):
+            if any(alias_matches(token, name) for token in rules["direct"]):
                 fund_direct = True
-                matched_themes.add(theme)
-            elif any(token.lower() in name.lower() for token in rules["indirect"]):
+                fund_matched.add(theme)
+            elif any(alias_matches(token, name) for token in rules["indirect"]):
                 fund_indirect = True
-                matched_themes.add(theme)
+                fund_matched.add(theme)
+        matched_themes.update(fund_matched)
+        # Look-through: a holdings-based theme counts only its disclosed share of the fund's NAV.
+        shares = [(fund.get("theme_holding_weights") or {}).get(theme) for theme in fund_matched]
+        known = [share for share in shares if share is not None]
+        look_through = weight * (min(1.0, max(known) / 100) if known else 1.0)
         if fund_direct:
             direct_funds.append(fund_name)
-            direct_weight += weight
+            direct_weight += look_through
         elif fund_indirect:
             indirect_funds.append(fund_name)
-            indirect_weight += weight
+            indirect_weight += look_through
     if direct_funds:
         status = "直接主题覆盖"
     elif indirect_funds:
@@ -327,7 +346,7 @@ def sector_portfolio_coverage(name: str, portfolio: dict[str, Any]) -> dict[str,
         "indirect_coverage_weight": min(1.0, indirect_weight),
         "related_holdings": direct_funds + indirect_funds,
         "matched_portfolio_themes": sorted(matched_themes),
-        "coverage_basis": "按最新可用基金画像主题映射；主动基金实际持仓可能在披露后变化",
+        "coverage_basis": "按基金季度前十大持仓中主题股占净值比例穿透估算（无持仓时按整只基金计）；主动基金实际持仓可能在披露后变化",
     }
 
 
@@ -460,7 +479,7 @@ def rotation_state(period_values: dict[str, dict[str, Any]], periods: list[dict[
         return "新启动", "最新完整周收益和资金转正并进入前30%"
     if current_positive:
         return "单周脉冲", "仅最新完整周转强，前周未确认"
-    return "高位分歧", "收益与资金方向未形成连续一致证据"
+    return "方向未确认", "收益与资金方向未形成连续一致证据"
 
 
 def analyze_sectors(cache_database: str | None, periods: list[dict[str, Any]], portfolio: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, Any]]:
@@ -496,7 +515,7 @@ def analyze_sectors(cache_database: str | None, periods: list[dict[str, Any]], p
 def build_evidence(periods: list[dict[str, Any]], portfolio: dict[str, Any], styles: list[dict[str, Any]], industries: list[dict[str, Any]], concepts: list[dict[str, Any]], style_regime: dict[str, Any]) -> dict[str, Any]:
     evidence: dict[str, dict[str, Any]] = {}
     for pid, value in portfolio.get("weekly_returns", {}).items():
-        evidence[f"portfolio:{pid}:return"] = {"id": f"portfolio:{pid}:return", "entity_id": "portfolio", "entity_name": "当前组合", "period": pid, "metric": "weekly_return", "value": value, "unit": "%", "source": "基金累计净值"}
+        evidence[f"portfolio:{pid}:return"] = {"id": f"portfolio:{pid}:return", "entity_id": "portfolio", "entity_name": "当前组合", "period": pid, "metric": "weekly_return", "value": value, "unit": "%", "source": "基金复权净值（缺失时累计净值）"}
     for row in styles:
         for pid, values in row["periods"].items():
             evidence[f"style:{row['name']}:{pid}:return"] = {"id": f"style:{row['name']}:{pid}:return", "entity_id": row["name"], "entity_name": row["name"], "period": pid, "metric": "weekly_return", "value": values.get("return"), "unit": "%", "source": "指数历史收盘价", "source_date": values.get("latest_date")}
@@ -511,7 +530,7 @@ def build_evidence(periods: list[dict[str, Any]], portfolio: dict[str, Any], sty
 
 def deterministic_synthesis(periods: list[dict[str, Any]], style_regime: dict[str, Any], industries: list[dict[str, Any]], portfolio: dict[str, Any], evidence_bundle: dict[str, Any]) -> dict[str, Any]:
     latest_pid = periods[-1]["period_id"] if periods else "W0"
-    priority = {"加速": 0, "持续主线": 1, "新启动": 2, "高位分歧": 3, "单周脉冲": 4, "退潮": 5, "持续流出": 6, "数据不足": 7}
+    priority = {"加速": 0, "持续主线": 1, "新启动": 2, "高位分歧": 3, "单周脉冲": 4, "方向未确认": 5, "退潮": 6, "持续流出": 7, "数据不足": 8}
     sorted_rows = sorted(industries, key=lambda row: (priority.get(row["rotation_state"], 9), -(row["periods"].get(latest_pid, {}).get("return_percentile") or -1)))
     leaders = [row for row in sorted_rows if row["rotation_state"] in {"加速", "持续主线", "新启动"} and row.get("monitor_state") in {"进行中延续", "无进行中周"}][:5]
     divergent = [row for row in sorted_rows if row["rotation_state"] in {"加速", "持续主线", "新启动"} and row.get("monitor_state") == "进行中分歧"][:5]
@@ -532,7 +551,7 @@ def deterministic_synthesis(periods: list[dict[str, Any]], style_regime: dict[st
         "status": "deterministic_fallback",
         "market_regime": style_regime.get("current_regime"),
         "rotation_path": [{"entity": row["name"], "state": row["rotation_state"], "monitor_state": row.get("monitor_state"), "reason": f"{row['rotation_reason']}；{row.get('monitor_state')}"} for row in leaders + divergent + fading],
-        "persistent_leaders": [row["name"] for row in leaders],
+        "persistent_leaders": [row["name"] for row in leaders if row["rotation_state"] != "新启动"],
         "emerging_sectors": [row["name"] for row in leaders if row["rotation_state"] == "新启动"],
         "fading_sectors": [row["name"] for row in fading],
         "portfolio_implications": ["组合三周收益与市场风格切换需结合当前重复暴露判断。"],

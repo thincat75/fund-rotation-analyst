@@ -1,6 +1,6 @@
 # Agent Integration Contract
 
-This repository is developed and validated in Codex, but its Python pipeline is agent-independent.
+This repository has been developed and reviewed with Codex and Claude Code; its Python pipeline is agent-independent.
 
 ## Required workflow
 
@@ -21,3 +21,7 @@ Never invent missing market data, alter deterministic actions, expose credential
 - The CLI does not call the OpenAI API and does not require an OpenAI API key.
 
 See `README.md` for commands and `SKILL.md` for the full analysis policy.
+
+## Maintaining Installed Copies
+
+Before updating an installed skill, compare it with this repository: another Agent may have changed the installed copy directly. Preserve and review those changes in the development checkout before synchronizing. Run the unit suite and offline example, validate the skill, then synchronize code, references, tests, and instructions together. Back up the prior installed copy and exclude credentials, private portfolios, caches, and generated reports from Git commits.

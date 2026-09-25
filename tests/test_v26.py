@@ -172,7 +172,8 @@ class ThreeWeekTests(unittest.TestCase):
             {"name": "PCB基金", "current_weight": 0.1, "themes": ["PCB/AI服务器"]},
         ]}
         direct = sector_portfolio_coverage("通信设备", portfolio)
-        indirect = sector_portfolio_coverage("云计算", portfolio)
+        # 云计算 was dropped as an alias: its constituents hold no optical-module leaders.
+        indirect = sector_portfolio_coverage("英伟达概念", portfolio)
         self.assertEqual(direct["portfolio_coverage"], "直接主题覆盖")
         self.assertAlmostEqual(direct["coverage_weight"], 0.2)
         self.assertEqual(indirect["portfolio_coverage"], "间接主题覆盖")

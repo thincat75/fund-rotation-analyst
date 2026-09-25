@@ -48,7 +48,7 @@ python scripts/render_weekly_visual_report.py --weekly-data weekly_analysis.json
 python scripts/validate_report.py --analysis weekly_analysis.json --html weekly_report.html --require-complete
 ```
 
-Weekly artifacts use `schema_version: 2`, current `data_revision: 2.8`, and visual format `weekly-visual-v2`. Treat the `--holdings` file passed to analysis as authoritative. Default periods are W0 current/latest available week, W-1 last complete week, and W-2 the preceding complete week. W0 is marked `进行中` when incomplete and cannot independently trigger a formal action. Use `--end-date YYYY-MM-DD` only for an explicit cutoff.
+Weekly artifacts use `schema_version: 2`, current `data_revision: 2.8`, and visual format `weekly-visual-v2`. Treat the `--holdings` file passed to analysis as authoritative. Without `--end-date`, a weekday run reports the last completed week as W0 (a weekend run uses the just-finished week), with the two preceding complete weeks as W-1 and W-2. When an explicit cutoff leaves W0 incomplete it is marked `进行中`: holdings are not escalated to `替换候选` and no replacement Top3 is generated from it. Use `--end-date YYYY-MM-DD` only for an explicit cutoff.
 
 The weekly HTML format is a stable product contract, not a best-effort template. Preserve all mandatory sections, their order, labeled units, navigation, mobile layout, print layout, provenance fingerprints, and explicit degraded states. Read `references/visual_report_contract.md` before changing any weekly renderer or validator. A data-model revision does not by itself justify a visual-format version change.
 
@@ -137,14 +137,14 @@ Always include these sections when data is available:
 
 For listed ETFs, especially hot sector ETFs, report trading quality together with performance: latest price, IOPV, premium/discount, turnover, update time, and whether the return calculation used adjusted prices or NAV. Never treat unadjusted ETF price discontinuities caused by splits/conversions as real investment losses.
 
-For ETF multi-period performance, prefer cumulative NAV over unit NAV when adjusted price is unavailable. Unit NAV is only for same-day closing-price/NAV premium. If unit NAV jumps but cumulative NAV remains continuous, mark `份额折算` and use cumulative NAV. Distinguish `实时IOPV溢价` from `收盘净值溢价` in every report.
+ETF return evidence order: back-adjusted price; ETF NAV compounded from published daily growth; cumulative NAV; unit NAV without a split; IOPV snapshots; feeder-fund NAV proxy; checked unadjusted/Sina price. Split and jump checks look only at the measured week, so a corporate action months earlier does not reject a series. Unit NAV is also used for the same-day closing premium. ETFs with report-end turnover below 1000万元 are not recommendation-eligible. Distinguish `实时IOPV溢价` from `收盘净值溢价` in every report.
 
 Separate ETF report-end evidence from the current trading snapshot. Report-end close, turnover, same-day unit NAV, and closing premium determine `recommendation_eligible`; a live quote no older than five minutes plus live IOPV determines `execution_ready`. Missing live data may block execution readiness but is optional and must not erase a valid closing score. Use proxy `rt_etf_k` for batched Shanghai/Shenzhen quotes after health promotion; Shanghai requests require `topic="HQ_FND_TICK"`. Proxy `rt_etf_sz_iopv` is Shenzhen-only. The lack of Shanghai IOPV is `not_required`, not a missing dataset.
 
 Treat failures as logical dataset chains. A failed primary source followed by a successful fallback is `fallback_used`, not a visible data gap. Keep source-level failures in the collapsible audit; show only unresolved datasets in the user-facing warning list.
 Every logical status must include `requirement` and `impact`. Only required `failed/partial` datasets count as unresolved. An empty dependency set is `not_required`; unavailable intraday-only data is `optional_unavailable`.
 
-Weekly quick mode must reuse cached fund profiles for current holdings and ranking candidates. Full mode refreshes public scale, turnover, quarterly holdings, and industry allocation. Basic/scale/turnover evidence has a 30-day TTL, quarterly holdings a 90-day TTL, and evidence older than 180 days is unusable.
+Weekly quick mode must reuse cached fund profiles for current holdings and ranking candidates, except that a current holding whose cached profile has no disclosed stock holdings is refetched: fund themes come from holding names, never from broad industry-allocation labels. Full mode refreshes public scale, turnover, quarterly holdings, and industry allocation. Basic/scale/turnover evidence has a 30-day TTL, quarterly holdings a 90-day TTL, and evidence older than 180 days is unusable.
 
 Classify `LOF` by its declared fund type or benchmark; `LOF` alone does not mean passive index. For active-fund theme evidence, use only the latest disclosed holdings/industry period. Name-only themes are low confidence and cannot make an active fund actionable.
 
@@ -154,6 +154,7 @@ Store the report-end single-day flow separately from the collection-day `今日`
 Label the single-period sector Top10 as `近5个交易日收益`, because it is a rolling five-session observation ending on the report cutoff. Do not call it a natural-week return. The W0/W-1/W-2 sector matrices are the source of truth for non-overlapping natural trading weeks. A sector enters a rolling 5-day or 10-day table only when it contains every expected market trading date in that window; never reach back to an older date to conceal a missing middle session.
 
 Never fill missing weekly sector returns with daily snapshots or fund-name proxies. Show daily board moves and fund-ranking theme signals in separate, explicitly labeled sections.
+Ranking snapshot returns are display-only until recomputed from NAV for the exact report interval. They must not receive report-week scores or qualify for Top3 merely because their snapshot date is close to the cutoff.
 For concepts, keep `concept_latest_close` separate from `concept_intraday`. A report-end Tushare `moneyflow_cnt_ths` row may supply the latest close, index level, return, and flow under the 同花顺 taxonomy. Populate the legacy `concept_today` field only when its source date equals the collection trading date.
 
 Never fabricate three replacement recommendations. A candidate must have an auditable return basis, sufficient score coverage, real sector/trend evidence, a score gap of at least 5, acceptable liquidity, and premium below 2%. If fewer than three candidates pass, emit `replacement_status: insufficient_evidence` and show the reason.
@@ -165,6 +166,7 @@ Three-week calculations, period boundaries, ranks, rotation states, scores, acti
 
 A-share leverage interpretation uses total margin balance for display and financing balance for scoring. Always show leverage heat and deleveraging pressure together. Low leverage is not an upside-space signal, high leverage is not a deterministic market top, and balance changes are not standalone buy/sell signals. SSE and SZSE must share the same trade date before aggregation; BSE remains display-only. Read `references/margin_leverage.md` before changing this module.
 Margin percentiles must use trailing history only, excluding the scored observation. The three-week leverage table recomputes heat and pressure at each period end, and the visual block must show 60-session tracks for two融余额、融资杠杆密度 and the selected broad-index proxy.
+Filter margin inputs by the report cutoff before cleaning; anomaly confirmation must never backfill earlier rejected dates using later observations. Apply the same cutoff to BSE display and policy events.
 
 When W0 is incomplete, display two separate cumulative results: `截至当前复合` may include W0 for monitoring, while `完整周复合` excludes W0 and is the only cumulative return eligible for action evidence. A confirmed `退潮/持续流出` sector that becomes `进行中修复观察` must not be counted as a current fading sector until the week closes.
 
@@ -176,6 +178,9 @@ Reject non-empty but stale index fallbacks. For 中证红利 `000922`, use `inde
 
 For weekly sector analysis, always include industry/concept return leaders, industry/concept inflow leaders, outflow leaders, flow persistence labels, current portfolio coverage, and candidate fund/ETF implications when data is available.
 Complete delivery requires all six rolling sector lists separately: industry/concept returns, industry inflow/outflow, and concept inflow/outflow. A populated inflow list must not mask a missing outflow list, or vice versa.
+Render every industry/concept flow list separately, up to ten rows each; do not merge them into a single Top10. Validate the rendered row count for each list.
+
+Daily NAV compounding requires consecutive exchange sessions and one observation per date. Flag missing intervals, conflicting duplicates, and unverified unit-NAV ratios; exclude affected interval returns from both weekly and three-week scoring. Derived NAV caches carry a model version and must be refreshed when it changes. Disclosed holdings take precedence over product-name keywords for theme classification.
 
 Use direct allocation labels for target-weight tables: `观察`, `小幅增配`, `增配`, `减配`, `清仓候选`.
 

@@ -16,6 +16,7 @@ from typing import Any, Iterator
 
 
 COLLECTOR_VERSION = "2.6"
+NAV_MODEL_VERSION = "reinvested-nav-v2"
 RETRYABLE_NAMES = {
     "ConnectionError",
     "ConnectTimeout",
@@ -57,6 +58,100 @@ def parse_number(value: Any) -> float | None:
         multiplier = 10_000.0
     match = re.search(r"[-+]?\d+(?:\.\d+)?", text)
     return float(match.group(0)) * multiplier if match else None
+
+
+def _record_day(record: dict[str, Any]) -> dt.date | None:
+    text = str(record.get("净值日期") or record.get("日期") or "")[:10]
+    for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y%m%d"):
+        try:
+            return dt.datetime.strptime(text, fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
+def nav_interval_issue(records: list[dict[str, Any]], start: dt.date, end: dt.date) -> str | None:
+    issues = {str(row["nav_quality_flag"]) for row in records
+              if row.get("nav_quality_flag") and (day := _record_day(row)) and start < day <= end}
+    return "；".join(sorted(issues)) or None
+
+
+def consecutive_nav_dates(previous: dt.date | None, current: dt.date, sessions: list[dt.date]) -> bool:
+    if previous is None or current <= previous:
+        return False
+    if sessions and sessions[0] <= previous and sessions[-1] >= current:
+        return previous in sessions and current in sessions and not any(previous < day < current for day in sessions)
+    return all((previous + dt.timedelta(days=i)).weekday() >= 5
+               for i in range(1, (current - previous).days))
+
+
+def derive_adjusted_fund_nav(records: list[dict[str, Any]], trading_dates: list[dt.date] | None = None) -> list[dict[str, Any]]:
+    """Build a distribution-adjusted NAV from unit NAV and published daily growth.
+
+    Accumulated NAV adds back per-share distributions without reinvestment, so its
+    ratio understates returns for funds that have paid dividends. The daily growth
+    rate published alongside unit NAV already accounts for distributions and share
+    splits. When it is missing, the unit/accumulated NAV pair still gives the exact
+    reinvested daily return; a bare unit-NAV ratio is flagged because it would treat
+    a distribution as a loss.
+    """
+    by_day = {}
+    conflicts = set()
+    for record in records or []:
+        day = _record_day(record)
+        if day:
+            if day in by_day and any(record.get(key) != by_day[day].get(key)
+                                     for key in ("单位净值", "累计净值", "日增长率")):
+                conflicts.add(day)
+            by_day[day] = dict(record)
+    dated = sorted(by_day.items())
+    if not dated:
+        return []
+    if not any((parse_number(row.get("单位净值")) or 0) > 0 for _, row in dated):
+        output = []
+        for _, row in dated:
+            accumulated = parse_number(row.get("累计净值"))
+            if accumulated is not None and accumulated > 0:
+                output.append({**row, "分析净值": accumulated, "nav_basis": "累计净值", "series_start_date": dated[0][0].isoformat()})
+        return output
+    output = []
+    adjusted: float | None = None
+    previous_unit: float | None = None
+    previous_accumulated: float | None = None
+    start_date: str | None = None
+    previous_day: dt.date | None = None
+    sessions = sorted(set(trading_dates or []))
+    for day, row in dated:
+        unit = parse_number(row.get("单位净值"))
+        if unit is None or unit <= 0:
+            continue
+        growth = parse_number(row.get("日增长率"))
+        accumulated = parse_number(row.get("累计净值"))
+        quality_flag = None
+        consecutive = consecutive_nav_dates(previous_day, day, sessions)
+        if adjusted is None or previous_unit is None:
+            adjusted, start_date = unit, day.isoformat()
+        elif growth is not None and consecutive:
+            adjusted *= 1 + growth / 100
+        elif accumulated is not None and previous_accumulated is not None:
+            # 累计净值 = 单位净值 + 累计分红, so this is the reinvested daily return.
+            adjusted *= (accumulated - previous_accumulated + previous_unit) / previous_unit
+        else:
+            adjusted *= unit / previous_unit
+            quality_flag = "日增长率缺失，按单位净值比值计算"
+        if previous_day is not None and not consecutive:
+            quality_flag = "净值日期不连续，区间分红再投资收益待核验"
+        if previous_unit and growth is None and abs(unit / previous_unit - 1) > 0.25:
+            quality_flag = "净值疑似折算，缺少复权证据"
+        if day in conflicts:
+            quality_flag = "同日净值数据冲突"
+        previous_unit, previous_accumulated = unit, accumulated
+        previous_day = day
+        item = {**row, "复权单位净值": adjusted, "分析净值": adjusted, "nav_basis": "日增长率复权单位净值", "series_start_date": start_date, "nav_model_version": NAV_MODEL_VERSION}
+        if quality_flag:
+            item["nav_quality_flag"] = quality_flag
+        output.append(item)
+    return output
 
 
 def clean_value(value: Any) -> Any:

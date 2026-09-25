@@ -34,14 +34,16 @@ Compare at least these buckets:
 
 Use 今日、5日、10日 where available:
 
-- `持续流入`: today is positive and at least two available periods among today/5-day/10-day are positive.
-- `短线脉冲`: strong positive today, but weak or missing 5-day/10-day flow.
-- `持续流出`: today is negative and at least two available periods among today/5-day/10-day are negative.
-- `分歧`: mixed direction.
+- `持续流入`: 5-day and 10-day flows are both positive; without a 10-day value, 5-day and today are both positive.
+- `持续流出`: 5-day and 10-day flows are both negative; without a 10-day value, 5-day and today are both negative.
+- `短线脉冲`: the recent window (5-day or today) is positive without longer-window confirmation.
+- `分歧`: mixed direction with no recent inflow.
 - `数据冲突`: official 5-day direction and daily-history aggregation disagree; do not score persistence.
 - `数据不足`: fewer than two periods are available; list the missing periods.
 
 ## Weekly Review Score
+
+Ranking snapshots without exact report-period NAV returns are observation-only: no weekly score, score gap, or Top3 eligibility. Disclosed-stock themes take precedence over fund-name keywords; name-only fallback must remain explicitly low confidence. NAV intervals flagged as missing, conflicting, or unverified cannot support weekly or three-week scoring.
 
 Use this score for weekly replacement and observation suggestions:
 
@@ -49,10 +51,10 @@ Use this score for weekly replacement and observation suggestions:
 - 1-month trend, 20 points: positive 1-month return confirms the move.
 - Sector return and fund-flow confirmation, 20 points: themes aligned with sector Top10 and sustained inflow receive higher score.
 - Style alignment, 10 points: fund theme matches strong weekly style indexes.
-- Trading quality, 10 points: ETFs lose points for high premium, weak liquidity, or unconfirmed return basis.
+- Trading quality, 10 points: ETFs lose points for high premium, weak liquidity, or unconfirmed return basis. An ETF with report-end turnover below 1000万元 is also not recommendation-eligible.
 - Portfolio fit, 10 points: candidates that add missing exposure score higher than duplicate exposure.
 
-Normalize weekly and one-month performance to cross-sectional 0-100 percentiles. Do not produce a total score unless at least 70% of component weight is available and weekly performance, one-month trend, and real sector confirmation are all present.
+Normalize weekly and one-month performance to cross-sectional 0-100 percentiles. The reference pool is current holdings plus candidate ETFs, whose returns cover the report week; ranking-fund candidates carry a later 近1周 snapshot and are placed against that pool without changing it. Do not produce a total score unless at least 70% of component weight is available and weekly performance, one-month trend, and real sector confirmation are all present.
 When 70%-99% of component weight is available, normalize the weighted sum by the available weight so the published score remains on a 0-100 scale; always display `score_coverage` beside it.
 
 An actionable replacement also requires a candidate score at least 5 points above the current holding. ETF candidates need `recommendation_eligible`: confirmed report-end return, turnover, same-date closing premium below 2%, and sector evidence. `execution_ready` is a separate pre-trade gate requiring a fresh live quote and live premium below 2%. A closing-eligible ETF without live evidence remains `替换观察` and receives no immediate 3%-5% instruction.
@@ -67,7 +69,8 @@ Rotation states use complete weeks:
 - `持续主线`: at least two complete weeks have positive return and positive weekly net flow; latest complete week remains positive.
 - `加速`: the latest two complete weeks are positive on both dimensions and return or flow percentile improves by at least 20 points.
 - `新启动`: the previous complete week was unconfirmed; latest complete week turns positive on both dimensions and both percentiles enter the top 30%.
-- `高位分歧`: return is positive but weekly flow is not, or ranks diverge materially.
+- `高位分歧`: latest complete-week return is positive but weekly flow is not.
+- `方向未确认`: none of the other states apply (for example mixed or single negative weeks); it is neutral, not a divergence signal.
 - `退潮`: a previously strong complete week is followed by negative return and negative flow.
 - `持续流出`: at least two complete weeks have negative return and negative flow.
 - `单周脉冲`: only the latest complete week is strong.

@@ -46,6 +46,7 @@ Codex synthesis is optional and evidence-bound. `analyze_weekly.py` emits the ev
 - Use the previous trading day's close before the target week as baseline when computing weekly returns.
 - Show exact dates in the report, for example `2026-07-03 -> 2026-07-10`.
 - Store the latest trading day at collection as `collection_trade_date`. If it is later than `end_date`, current-day flow is a post-period snapshot and must not confirm the completed-week score.
+- Ranking snapshots remain observation signals, regardless of collection date. Until exact-period NAV returns are available, suppress their report-week score and Top3 eligibility. Keep `source_date` visible in machine-readable rows.
 - The main inflow/outflow ranking for a completed-week report uses the 5-day net flow whose source date equals `end_date`; rank it by 5-day flow and join the same row's 5-day return. A later current-day snapshot belongs only in the separately dated 今日 panel.
 - If holdings have no real amounts, label returns and weights as equal-weight assumptions.
 - Never use a NAV or price dated after the requested end date. If valid NAV coverage is below 90%, suppress the formal portfolio return and display coverage plus a partial estimate.
@@ -57,12 +58,15 @@ Listed ETFs can have price discontinuities from splits, conversions, or share ad
 Preferred return evidence order:
 
 1. Adjusted ETF historical price, such as `fund_etf_hist_em(..., adjust="hfq")` or a reliable adjusted source.
-2. ETF cumulative NAV over the same period.
-3. Feeder fund cumulative NAV return as a proxy, clearly labeled as proxy.
+2. ETF NAV compounded from published `日增长率` (handles distributions and splits).
+3. ETF cumulative NAV, then unit NAV when no split falls inside the week.
 4. IOPV snapshots when both endpoints are date aligned.
-5. Unadjusted Eastmoney/Sina price return only when there is no suspicious discontinuity.
+5. Feeder fund NAV return as a proxy (adjusted when daily growth is available), clearly labeled as proxy.
+6. Unadjusted Eastmoney/Sina price return only when there is no suspicious discontinuity inside the week.
 
 Never use unit NAV across a share split. Use unit NAV only with the same day's close to compute `收盘净值溢价`; real-time price/IOPV produces `实时IOPV溢价` and must be labeled separately.
+
+ETF unit NAV history is fetched in quick mode too, because the closing premium needs a date-aligned NAV even when adjusted prices already supply the return. When the NAV snapshot is dated after the cutoff and only a weekend separates it from the cutoff, its `前一日-单位净值` is the cutoff-day NAV. Back-adjusted (hfq) prices are not closing prices: without an unadjusted or forward-adjusted series, fetch Sina history for the close. Turnover is adjustment-independent and may come from any report-end row. ETF and feeder-fund returns prefer NAV compounded from `日增长率` over accumulated NAV.
 
 `recommendation_eligible` means the report-end return, turnover, date-aligned closing premium, and sector evidence are complete enough for replacement observation. `execution_ready` additionally requires a quote no older than five minutes and confirmed live premium below 2%. Missing intraday data never changes the historical score; it changes the action to `替换观察，执行前复核实时溢价`.
 
@@ -73,12 +77,13 @@ If unadjusted price implies an extreme move inconsistent with sector/index moves
 ## Data Source Fallbacks
 
 - Provider routing: `auto` promotes only health-approved proxy datasets; `shadow` collects proxy evidence without changing the report; `akshare-only` disables it.
-- Proxy fund NAV: `fund_nav.adj_nav`, then continuous `accum_nav`. `unit_nav` is same-day display/split evidence only.
+- Proxy fund NAV: `fund_nav.adj_nav` only when every row has it; otherwise the reinvested return derived from `unit_nav` + `accum_nav` (a row missing `accum_nav` uses a flagged unit-NAV ratio); bare `accum_nav` only without unit NAV. The proxy series replaces public NAV only when it reaches the cutoff.
 - Proxy ETF history: `fund_daily + fund_adj`; never use `pro_bar` adjustment as ETF evidence.
 - Proxy sector flows: `net_amount` is documented in 亿元; convert it to yuan before aggregation/output. Industry return uses `close`; concept return uses `industry_index` or compounded `pct_change`.
 - Proxy sector-flow rankings must state `同花顺行业全量` or `同花顺概念全量`. Do not mix or compare exact ranks with 东方财富 taxonomies as though the sector names represented the same universe.
 
-- Fund NAV: `fund_open_fund_info_em`; for ETFs use `fund_etf_fund_info_em` or ETF historical endpoints when needed.
+- Fund NAV: `fund_open_fund_info_em` `单位净值走势`, compounding `日增长率` into `复权单位净值` so distributions do not distort returns; `累计净值走势` is the fallback. Accumulated NAV ratios understate returns for funds that have paid dividends. For ETFs use `fund_etf_fund_info_em` or ETF historical endpoints when needed.
+- Holding scores need one-year drawdown and three-month return. Cached fund NAV is reused only when it reaches the cutoff, carries `分析净值`, and spans about one year; a slice limited to the three-week window must be refetched.
 - Market style indexes: first try `index_zh_a_hist`; if it fails, try `stock_zh_index_daily` / `stock_zh_index_daily_tx`.
 - ETF spot trading quality: `fund_etf_spot_em` for price, IOPV, premium/discount, turnover, update time.
 - Weekly fund rankings: `fund_open_fund_rank_em`, using `近1周` as the primary short-term evidence.
@@ -105,10 +110,12 @@ Weekly sector analysis must answer:
 
 Flow labels:
 
-- `持续流入`: today is positive and at least two of today/5-day/10-day are positive.
-- `短线脉冲`: today is positive but 5-day/10-day confirmation is weak or missing.
-- `持续流出`: today is negative and at least two of today/5-day/10-day are negative.
-- `分歧`: at least two periods are available and directions are mixed.
+Flow labels use the same multi-day windows as the 5-day inflow/outflow rankings, so a sector cannot sit in the inflow Top10 while labeled as sustained outflow. The report-end day substitutes only for a missing 10-day (or 5-day) window.
+
+- `持续流入`: 5-day and 10-day net flows are both positive (without 10-day: 5-day and report-end day positive).
+- `持续流出`: 5-day and 10-day net flows are both negative (without 10-day: 5-day and report-end day negative).
+- `短线脉冲`: the recent window turned positive (5-day or report-end day) without longer-window confirmation.
+- `分歧`: at least two periods are available, directions are mixed, and no recent inflow is present.
 - `数据不足`: fewer than two of today/5-day/10-day are available.
 
 All flow amounts are normalized internally to人民币元 and displayed with an explicit `亿元` suffix. Never display an unlabeled value such as `43`. When only one period is available, show `仅单周期，暂不判断` and name the missing periods rather than implying that no data exists.
@@ -143,3 +150,4 @@ For the three-week table, show heat and deleveraging-pressure scores or their co
 - User-facing text must translate internal states. The conclusion must separately state return leaders, flow-confirmed leaders, portfolio coverage, duplicate exposure, and concrete recommendation blockers.
 - Holding rows must label current weight, weekly/1-month/3-month returns, one-year maximum drawdown, score, and action. Equal-weight assumptions are not account positions.
 - Sector labels come from the sector taxonomy, not the fund-theme keyword dictionary. Unknown names are `待分类` with a reason; they are not automatically treated as missing opportunities.
+- A sector may carry an `exposure_keys` fund-theme mapping (in `sector_taxonomy.json` and the three-week coverage aliases) only when its constituents support it: the theme's leading stocks are members, and for ETF confirmation the sector overlaps a meaningful share of the ETF's holdings. A name that merely sounds related stays classified without exposure keys. Checked on 2026-09-15 against THS members: 电子化学品 is a mix of semiconductor materials (~15/43), PCB chemicals and display materials and covers only ~12% of semiconductor-equipment ETF holdings; 光学光电子 is mostly display/LED with no optical-module leaders; 人工智能/AI应用 are software-dominated; 元件、PCB概念 contain the PCB leaders; CPO/光纤/5G and the 通信设备 industry contain the optical-module leaders. Also unsupported and therefore without exposure keys: 计算机/软件/IT服务 (software-dominated, no PCB/server leaders), 通信服务 (IDC/operators/engineering), 光刻 (half chemicals), 中药/医药商业 (not innovative drugs), 电网/电源设备 (transmission equipment), 煤炭概念 and 参股银行 (mixed boards); 电信运营商 maps to 红利价值. Fund themes are inferred only from disclosed holding names, fund names and user tags; industry-allocation class labels (e.g. 50通信服务, CSRC 计算机、通信和其他电子设备制造业) never assign a theme. A holdings-based theme needs matched top-ten holdings worth at least 10% of NAV, and sector coverage is a look-through estimate: fund weight × that theme's disclosed share of NAV (whole fund weight only when no holdings are disclosed). In flow evidence, `单日` is the single session at the flow cutoff.

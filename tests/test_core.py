@@ -60,6 +60,45 @@ class DateAndReturnTests(unittest.TestCase):
         self.assertIsNotNone(result["three_month"])
         self.assertIsNotNone(result["max_drawdown_1y"])
 
+    def test_adjusted_nav_uses_daily_growth_instead_of_accumulated_nav(self) -> None:
+        raw = [
+            {"净值日期": "2026-07-10", "单位净值": 2.5445, "日增长率": -3.52, "累计净值": 2.9065},
+            {"净值日期": "2026-07-03", "单位净值": 2.6372, "日增长率": 0.10, "累计净值": 2.9992},
+            *[{"净值日期": f"2026-07-{day:02}", "单位净值": 2.6372, "日增长率": 0.0, "累计净值": 2.9992} for day in range(6, 10)],
+        ]
+        records = collector.derive_adjusted_fund_nav(raw)
+        self.assertEqual([row["净值日期"] for row in records], ["2026-07-03"] + [f"2026-07-{day:02}" for day in range(6, 11)])
+        self.assertEqual(records[-1]["nav_basis"], "日增长率复权单位净值")
+        result = weekly.series_metrics(records, WEEK)
+        self.assertAlmostEqual(result["week_return"], -3.52, places=6)
+
+    def test_adjusted_nav_survives_distribution_drop_in_unit_nav(self) -> None:
+        raw = [
+            {"净值日期": "2026-07-03", "单位净值": 2.0, "日增长率": 0.0},
+            *[{"净值日期": f"2026-07-{day:02}", "单位净值": 2.0, "日增长率": 0.0} for day in range(6, 10)],
+            {"净值日期": "2026-07-10", "单位净值": 1.55, "日增长率": 1.0},
+        ]
+        result = weekly.series_metrics(collector.derive_adjusted_fund_nav(raw), WEEK)
+        self.assertAlmostEqual(result["week_return"], 1.0, places=6)
+
+    def test_adjusted_nav_falls_back_to_accumulated_nav_without_unit_nav(self) -> None:
+        records = collector.derive_adjusted_fund_nav([{"净值日期": "2026-07-03", "累计净值": 3.0}])
+        self.assertEqual(records[0]["分析净值"], 3.0)
+        self.assertEqual(records[0]["nav_basis"], "累计净值")
+
+    def test_cached_fund_nav_requires_one_year_history(self) -> None:
+        basis = "日增长率复权单位净值"
+        short = [{"净值日期": day, "分析净值": 1.0, "nav_basis": basis} for day in ("2026-06-01", "2026-07-10")]
+        full = [{"净值日期": day, "分析净值": 1.0, "nav_basis": basis, "nav_model_version": collector.NAV_MODEL_VERSION} for day in ("2025-07-10", "2026-07-10")]
+        legacy = [{"净值日期": day, "累计净值": 1.0} for day in ("2025-07-10", "2026-07-10")]
+        stale = [{"净值日期": day, "分析净值": 1.0, "nav_basis": basis} for day in ("2025-07-10", "2026-07-09")]
+        mixed = [{**full[0], "nav_basis": "累计净值"}, full[1]]
+        self.assertFalse(collector.cached_fund_nav_usable(mixed, WEEK))
+        self.assertFalse(collector.cached_fund_nav_usable(short, WEEK))
+        self.assertTrue(collector.cached_fund_nav_usable(full, WEEK))
+        self.assertFalse(collector.cached_fund_nav_usable(legacy, WEEK))
+        self.assertFalse(collector.cached_fund_nav_usable(stale, WEEK))
+
     def test_duplicate_dates_use_last_observation(self) -> None:
         records = [
             {"日期": "2026-07-03", "累计净值": 1.0},
@@ -127,8 +166,18 @@ class SectorTests(unittest.TestCase):
     def test_flow_status_requires_two_periods(self) -> None:
         self.assertEqual(weekly.flow_status(1, None, None), "数据不足")
         self.assertEqual(weekly.flow_status(0, 2, 0), "数据不足")
-        self.assertEqual(weekly.flow_status(1, 2, -1), "持续流入")
-        self.assertEqual(weekly.flow_status(-1, -2, 3), "持续流出")
+        self.assertEqual(weekly.flow_status(1, 2, -1), "短线脉冲")
+        self.assertEqual(weekly.flow_status(-1, -2, 3), "分歧")
+
+    def test_flow_status_follows_multi_day_windows_used_by_rankings(self) -> None:
+        self.assertEqual(weekly.flow_status(20, 210, 60), "持续流入")
+        self.assertEqual(weekly.flow_status(-6, 4, 56), "持续流入")
+        self.assertEqual(weekly.flow_status(-17, 340, -159), "短线脉冲")
+        self.assertEqual(weekly.flow_status(-1, -2, -3), "持续流出")
+        self.assertEqual(weekly.flow_status(3, -5, -9), "持续流出")
+        self.assertEqual(weekly.flow_status(3, -5, 9), "短线脉冲")
+        self.assertEqual(weekly.flow_status(1, None, 2), "持续流入")
+        self.assertEqual(weekly.flow_status(-1, -2, None), "持续流出")
 
     def test_complete_sector_universe_turns_no_match_into_low_score_evidence(self) -> None:
         sectors = {"industry_return": [{

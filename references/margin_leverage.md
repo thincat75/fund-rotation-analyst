@@ -2,6 +2,8 @@
 
 Use this reference for the mandatory `weekly-visual-v2` leverage section. The module explains the market environment only. Its `action_policy` is always `display_only`; enabling or disabling it must leave fund scores, Top3, target weights, and actions unchanged.
 
+`margin-leverage-v1.1` changes anomaly filtering to preserve historical decisions and enforces the cutoff before cleaning. Rebuild calibration artifacts with the existing calibration command; v1 results cannot be attached to v1.1 analysis. The visualization and analysis schema versions remain unchanged.
+
 ## Scope And Sources
 
 - Long-history scope: SSE + SZSE. Aggregate only rows sharing the same trade date.
@@ -11,7 +13,11 @@ Use this reference for the mandatory `weekly-visual-v2` leverage section. The mo
 - Store normalized closed-day rows in the shared SQLite `time_series` table. Units are declared by each adapter and converted to yuan; do not infer units from magnitude.
 - Keep the denominator on an A-share basis: SSE main-board A plus STAR Market, and SZSE main-board A plus ChiNext. Exclude B shares, funds, bonds, and options.
 - The formal comparable history starts on `2014-09-22`. Earlier rows may be displayed but cannot enter percentiles or calibration.
-- Deduplicate logical time series by `trade_date` before modeling when multiple providers cached the same exchange/date. Prefer the newest validated row for the selected provider chain; duplicate providers must not increase sample counts.
+- Deduplicate logical time series by `trade_date` before modeling when multiple providers cached the same exchange/date. Official Tushare rows win over public fallbacks for the same date; otherwise prefer the newest row. Duplicate providers must not increase sample counts, and a degraded public refresh must not overwrite verified history.
+- Before aggregating SSE+SZSE, truncate all inputs at the report cutoff, then drop non-positive placeholders and level values beyond ±20% of the preceding five accepted values' median. Three mutually consistent rejected observations confirm a possible level shift only from the third observation onward; never restore the two earlier rejected dates. Missing level fields retain their other fields. These are data-quality heuristics, not proof of a real market event.
+- N-session changes (1/5/20/60 sessions, rolling 20-session growth, and the historical `20日最快扩张`) are computed only when the window's calendar span is at most `N × 7/5 + 15` days, so missing sessions cannot stretch a window.
+- Cached margin and market-denominator history must contain every recent exchange session up to the cutoff, not just the cutoff itself; missing sessions are refetched.
+- SZSE publishes margin totals a session later than SSE. When the combined SSE+SZSE series ends before the report cutoff, the module is `partial` and states its real as-of date; it is never labelled complete.
 
 Reject future dates, mismatched exchange dates, stale market denominators, empty responses, and unit conflicts. Verify daily:
 
@@ -109,3 +115,9 @@ Calibration artifacts must record model version, cutoff, evidence hash, and samp
 Three-week leverage rows are recomputed as of each period's own end date. Do not reuse the latest report-day heat, pressure, or percentile for W-1 or W-2. Partial W0 can be displayed as monitoring evidence, but formal fund actions remain based on completed-week evidence.
 
 Historical comparison tables keep distinct peak dates for absolute financing balance, financing leverage density, and financing trading intensity. Never attach the balance-peak date to a ratio peak unless the dates are actually identical.
+
+## Current-Year Score Chart
+
+The HTML leverage block plots leverage heat and deleveraging pressure together on one fixed 0-100 axis from January 1 of the report year through the report cutoff. Recompute each trading day's scores using only information available on or before that day. Never carry the report-day score backward, fill missing observations with zero, or include dates after the report cutoff. Use distinct line styles as well as color so the two series remain distinguishable without color alone.
+
+Mark up to four material local peaks using deleveraging pressure as the anchor series. A peak must reach at least 30 points, and representative peaks from the same pressure episode must be separated by at least 15 trading observations. Number the selected points chronologically and list the exact date, deleveraging-pressure score, and same-day leverage-heat score below the chart. These annotations describe historical stress episodes only; they do not create a trading signal.

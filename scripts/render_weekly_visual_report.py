@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import html
 from pathlib import Path
 from typing import Any
@@ -129,6 +130,19 @@ def style_rows(rows: list[dict[str, Any]]) -> str:
             f'''<div class="style-row" data-row="style"><b>{esc(row.get('name'))}</b><div class="track"><i class="{tone(value)}" style="width:{width:.1f}%"></i></div><strong class="{tone(value)}">{pct(value)}</strong><small>{esc(row.get('return_basis') or '周收益不可确认')} · {esc(row.get('resolved_source') or '无有效来源')} · 最新 {esc(row.get('source_latest_date') or row.get('latest_date') or '日期不足')} · {esc(row.get('data_status_display') or status_display(row.get('data_status')))}</small></div>'''
         )
     return "".join(output)
+
+
+def flow_panels(sectors: dict[str, Any], cutoff: str) -> str:
+    panels = []
+    for group, label in (("industry", "行业"), ("concept", "概念")):
+        for direction, direction_label in (("inflow", "流入"), ("outflow", "流出")):
+            key = f"{group}_{direction}"
+            panels.append(
+                f'<article class="card span-12" data-flow-list="{key}">'
+                f'<h2>报告期5日资金{direction_label}：{label} Top10（截至 {esc(cutoff)}）</h2>'
+                f'{sector_rows(sectors.get(key) or [])}</article>'
+            )
+    return "".join(panels)
 
 
 def sector_rows(rows: list[dict[str, Any]], value_key: str = "week_return", return_label: str | None = None) -> str:
@@ -300,6 +314,136 @@ def _sparkline(rows: list[dict[str, Any]], field: str, label: str, value_kind: s
     )
 
 
+def _margin_score_chart(rows: list[dict[str, Any]], start_date: str, end_date: str) -> str:
+    normalized = []
+    for row in rows:
+        try:
+            day = dt.date.fromisoformat(str(row.get("trade_date"))[:10])
+        except ValueError:
+            continue
+        if not start_date <= day.isoformat() <= end_date:
+            continue
+        normalized.append({
+            "day": day,
+            "heat": row.get("heat_score"),
+            "pressure": row.get("deleveraging_pressure_score"),
+        })
+    normalized.sort(key=lambda row: row["day"])
+    if not normalized:
+        return '<p class="empty" data-chart="margin-score-year">今年逐日热度/压力评分不足，暂不绘制双线图。</p>'
+
+    start = dt.date.fromisoformat(start_date)
+    end = dt.date.fromisoformat(end_date)
+    day_span = max(1, (end - start).days)
+    left, right, top, bottom = 58.0, 985.0, 22.0, 214.0
+
+    def x(day: dt.date) -> float:
+        return left + (day - start).days / day_span * (right - left)
+
+    def y(value: float) -> float:
+        return top + (100 - value) / 100 * (bottom - top)
+
+    def polylines(field: str, css_class: str) -> str:
+        segments: list[list[str]] = []
+        current: list[str] = []
+        for row in normalized:
+            value = row.get(field)
+            if value is None:
+                if len(current) >= 2:
+                    segments.append(current)
+                current = []
+                continue
+            number = max(0.0, min(100.0, float(value)))
+            current.append(f"{x(row['day']):.1f},{y(number):.1f}")
+        if len(current) >= 2:
+            segments.append(current)
+        return "".join(
+            f'<polyline class="{css_class}" points="{esc(" ".join(segment))}" fill="none" vector-effect="non-scaling-stroke"/>'
+            for segment in segments
+        )
+
+    def pressure_peaks() -> list[dict[str, Any]]:
+        candidates: list[tuple[float, int, dict[str, Any]]] = []
+        for index in range(1, len(normalized) - 1):
+            value = normalized[index].get("pressure")
+            previous = normalized[index - 1].get("pressure")
+            following = normalized[index + 1].get("pressure")
+            if value is None or previous is None or following is None:
+                continue
+            number = float(value)
+            if number < 30:
+                continue
+            if number >= float(previous) and number >= float(following) and (
+                number > float(previous) or number > float(following)
+            ):
+                candidates.append((number, index, normalized[index]))
+
+        selected: list[tuple[float, int, dict[str, Any]]] = []
+        for candidate in sorted(candidates, key=lambda item: item[0], reverse=True):
+            if all(abs(candidate[1] - existing[1]) >= 15 for existing in selected):
+                selected.append(candidate)
+            if len(selected) == 4:
+                break
+        return [item[2] for item in sorted(selected, key=lambda item: item[1])]
+
+    grids = []
+    for value in (0, 25, 50, 75, 100):
+        y_pos = y(float(value))
+        grids.append(
+            f'<line class="score-grid" x1="{left:.1f}" y1="{y_pos:.1f}" x2="{right:.1f}" y2="{y_pos:.1f}"/>'
+            f'<text class="score-axis-label" x="8" y="{y_pos + 4:.1f}">{value}</text>'
+        )
+
+    month_ticks = []
+    month = dt.date(start.year, start.month, 1)
+    while month <= end:
+        if month >= start:
+            x_pos = x(month)
+            month_ticks.append(
+                f'<line class="score-month" x1="{x_pos:.1f}" y1="{top:.1f}" x2="{x_pos:.1f}" y2="{bottom:.1f}"/>'
+                f'<text class="score-axis-label" x="{x_pos:.1f}" y="239" text-anchor="middle">{month.month}月</text>'
+            )
+        month = dt.date(month.year + (1 if month.month == 12 else 0), 1 if month.month == 12 else month.month + 1, 1)
+
+    heat_values = [float(row["heat"]) for row in normalized if row.get("heat") is not None]
+    pressure_values = [float(row["pressure"]) for row in normalized if row.get("pressure") is not None]
+    heat_latest = score_text(heat_values[-1]) if heat_values else "未评分"
+    pressure_latest = score_text(pressure_values[-1]) if pressure_values else "未评分"
+    peaks = pressure_peaks()
+    peak_marks = []
+    peak_cards = []
+    for index, row in enumerate(peaks, start=1):
+        pressure_value = float(row["pressure"])
+        heat_value = float(row["heat"]) if row.get("heat") is not None else None
+        x_pos = x(row["day"])
+        y_pos = y(pressure_value)
+        peak_marks.append(
+            f'<g class="pressure-peak-mark"><circle cx="{x_pos:.1f}" cy="{y_pos:.1f}" r="5"/>'
+            f'<text x="{x_pos:.1f}" y="{max(top + 12, y_pos - 10):.1f}" text-anchor="middle">P{index}</text></g>'
+        )
+        peak_cards.append(
+            f'<div><b>P{index} · {esc(row["day"].isoformat())}</b>'
+            f'<span>去杠杆压力 {esc(score_text(pressure_value))}</span>'
+            f'<span>同日杠杆热度 {esc(score_text(heat_value))}</span></div>'
+        )
+    peak_detail = (
+        '<div class="pressure-peak-detail"><strong>去杠杆压力关键峰值</strong>'
+        '<small>按红色虚线的局部峰值识别；同一压力阶段仅保留一个代表点。</small>'
+        f'<div class="pressure-peak-grid">{"".join(peak_cards)}</div></div>'
+        if peak_cards else
+        '<p class="pressure-peak-empty">今年尚无达到30分的去杠杆压力局部峰值。</p>'
+    )
+    return f'''<figure class="score-chart" data-chart="margin-score-year">
+      <div class="score-legend"><span class="heat-line">杠杆热度（橙色实线） <b>{esc(heat_latest)}</b></span><span class="pressure-line">去杠杆压力（红色虚线） <b>{esc(pressure_latest)}</b></span></div>
+      <svg viewBox="0 0 1000 250" role="img" aria-label="{esc(start_date)}至{esc(end_date)}杠杆热度与去杠杆压力双线图，同轴0到100分">
+        {''.join(grids)}{''.join(month_ticks)}
+        {polylines('heat', 'score-heat')}{polylines('pressure', 'score-pressure')}{''.join(peak_marks)}
+      </svg>
+      <figcaption>今年 {esc(start_date)} 至 {esc(end_date)} · 双线同轴 0–100分 · 每个交易日只使用当日及之前的历史数据，缺失值不补0。</figcaption>
+      {peak_detail}
+    </figure>'''
+
+
 def margin_leverage_html(margin: dict[str, Any], three: dict[str, Any]) -> str:
     current = margin.get("current") or {}
     norm = margin.get("normalization") or {}
@@ -316,6 +460,9 @@ def margin_leverage_html(margin: dict[str, Any], three: dict[str, Any]) -> str:
         if ratio_observations else "历史样本待补"
     )
     full_history_note = "全历史已覆盖" if history.get("full_ratio_history_available") else "全历史尚未覆盖2014起点"
+    year_start = str(margin.get("score_series_year_start") or f"{str(margin.get('as_of') or '')[:4]}-01-01")
+    year_end = str(margin.get("score_series_year_end") or margin.get("as_of") or "-")
+    year_label = year_start[:4] if len(year_start) >= 4 else "今年"
     cards = "".join([
         f'<div><small>当前两融余额</small><b>{esc(money_yi(current.get("margin_balance")))}</b><span>融资 {esc(money_yi(current.get("financing_balance")))} · 融券 {esc(money_yi(current.get("lending_balance")))}</span></div>',
         f'<div><small>距离全历史峰值</small><b>{esc(pct(history.get("peak_gap_pct")))}</b><span>峰值恢复度 {esc(pct(history.get("peak_recovery_pct")))} · 峰值日 {esc(history.get("peak_date") or "数据不足")}</span></div>',
@@ -359,13 +506,14 @@ def margin_leverage_html(margin: dict[str, Any], three: dict[str, Any]) -> str:
       </div>'''
     return f'''<div class="margin-kpis">{cards}</div>{explanations}<div class="dual-gauge">{gauges}</div>
       <div class="margin-regime"><b>二维状态：{esc(regime.get('label') or '数据不足')}</b><p>{esc(regime.get('explanation') or '缺少同口径历史，暂不判断。')}</p><small>截至 {esc(margin.get('as_of') or '-')} · {esc(status_display(status))} · 仅作市场环境展示，不改变基金评分、Top3、目标配比或调仓动作。</small></div>
+      <h3>{esc(year_label)}年杠杆热度与去杠杆压力</h3>{_margin_score_chart(margin.get('score_series_year') or [], year_start, year_end)}
       <h3>近60日杠杆与市场轨迹</h3><div class="margin-trends">
         {_sparkline(margin.get('series') or [], 'margin_balance', '近60日两融余额')}
         {_sparkline(margin.get('series') or [], 'financing_to_float_cap', '近60日融资杠杆密度', 'pct')}
         {_sparkline(margin.get('broad_index_series') or [], 'close', f'近60日宽基代表（{broad_index_name}）', 'index')}
       </div>
       <h3>最近三周</h3><div class="margin-weeks">{''.join(three_rows) or '<p class="empty">三周两融轨迹不足。</p>'}</div>
-      <h3>历史阶段同口径比较</h3><div class="table-scroll"><table class="margin-table"><thead><tr><th>阶段</th><th>余额峰值</th><th>峰值日</th><th>当前距峰值</th><th>杠杆密度峰值</th><th>交易强度峰值</th><th>20日最快扩张</th><th>峰后20日最大回撤</th><th>峰后60日最大回撤</th></tr></thead><tbody>{comparisons or '<tr><td colspan="9">历史样本不足，暂不比较。</td></tr>'}</tbody></table></div>
+      <h3>历史阶段同口径比较</h3><div class="table-scroll"><table class="margin-table"><thead><tr><th>阶段</th><th>余额峰值</th><th>峰值日</th><th>当前距峰值</th><th>杠杆密度峰值</th><th>交易强度峰值</th><th>20日最快扩张</th><th>峰后20日宽基指数最大回撤</th><th>峰后60日宽基指数最大回撤</th></tr></thead><tbody>{comparisons or '<tr><td colspan="9">历史样本不足，暂不比较。</td></tr>'}</tbody></table></div>
       <h3>走步法历史校准</h3>{f'<p class="muted">校准截止 {esc(calibration.get("end_date"))} · 样本 {esc(calibration.get("observation_count"))} · 每个历史日只使用此前最多5年数据。</p><div class="table-scroll"><table class="margin-table"><thead><tr><th>热度区间</th><th>样本数</th><th>样本状态</th><th>未来20日回撤中位数</th><th>20日风险事件率</th><th>未来60日回撤中位数</th><th>60日风险事件率</th></tr></thead><tbody>{calibration_rows}</tbody></table></div>' if calibration_rows else '<p class="empty">尚未生成同口径走步校准；不发布历史风险概率。</p>'}
       <div class="margin-notes"><div><h3>政策与口径节点</h3><ul>{policies}</ul></div><div><h3>数据限制</h3><ul>{quality}</ul><p>低杠杆不代表上涨空间必然较大；高杠杆也不代表市场立即见顶。需要同时观察价格、盈利、成交和去杠杆压力。</p></div></div>'''
 
@@ -412,7 +560,7 @@ def render(data: dict[str, Any]) -> str:
         for row in three.get("industries") or []
     )
     covered = "、".join(comparison.get("covered_themes") or []) or "未发现与本周领涨方向一致的可验证覆盖"
-    missing = "、".join(comparison.get("missing_themes") or []) or "未识别出明确缺失方向"
+    missing = "、".join(comparison.get("missing_themes") or []) or "强势板块中暂无可映射到基金主题的缺失方向（未映射板块见本周结论）"
     overlap = "、".join(comparison.get("overlap_risk") or []) or "暂未识别出三只及以上基金共同暴露的主题"
     warnings = data.get("warnings") or []
     warning_html = "".join(f"<li>{esc(item)}</li>" for item in warnings) or "<li>暂无未解决的数据缺口。</li>"
@@ -440,13 +588,22 @@ p{{overflow-wrap:anywhere}}
 .sector-row{{grid-template-columns:minmax(140px,1.25fr) repeat(6,minmax(54px,.55fr))}}
 .span-3{{grid-column:span 3}}
 .skip-link{{position:fixed;left:12px;top:-60px;z-index:10;background:#fff;color:var(--blue);padding:10px;border:2px solid var(--blue);border-radius:6px}}.skip-link:focus{{top:12px}}.report-nav{{display:flex;gap:6px;overflow-x:auto;padding:10px 0 4px;position:sticky;top:0;z-index:5;background:rgba(244,246,248,.96);border-bottom:1px solid var(--line)}}.report-nav a{{color:var(--blue);text-decoration:none;white-space:nowrap;padding:7px 9px;border-radius:5px;font-size:13px}}.report-nav a:hover,.report-nav a:focus{{background:#e7edf7;outline:2px solid transparent}}.report-meta{{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}}.report-meta span{{padding:4px 7px;border:1px solid var(--line);border-radius:5px;color:var(--muted);font-size:12px}}.grid{{scroll-margin-top:58px}}
-.margin-kpis{{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}}.margin-kpis>div{{padding:13px;background:#f7f9fb;border:1px solid var(--line);border-radius:6px}}.margin-kpis small,.margin-kpis b,.margin-kpis span{{display:block}}.margin-kpis b{{font-size:21px;margin:6px 0}}.metric-guide{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:14px 0}}.metric-guide>div{{padding:13px;border:1px solid var(--line);border-radius:6px;background:#fff}}.metric-guide p{{margin:7px 0;line-height:1.55;color:var(--muted)}}.metric-guide strong,.metric-guide span{{display:block;font-size:13px;line-height:1.55}}.dual-gauge{{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:16px 0}}.gauge{{padding:14px;border:1px solid var(--line);border-radius:6px}}.gauge>span{{display:flex;justify-content:space-between;gap:10px}}.gauge-track{{height:12px;background:#edf0f3;border-radius:6px;overflow:hidden;margin:10px 0}}.gauge-track i{{display:block;height:100%;background:var(--warn)}}.gauge.pressure .gauge-track i{{background:var(--risk)}}.margin-regime{{padding:14px;border-left:4px solid var(--blue);background:#f7f9fb}}.margin-regime p{{margin:6px 0;line-height:1.6}}.margin-trends{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}}.spark{{margin:8px 0;color:var(--blue);min-width:0}}.spark svg{{display:block;width:100%;height:138px;background:#fafbfc;border:1px solid var(--line);border-radius:6px}}.spark figcaption{{margin-top:5px;color:var(--muted);font-size:12px;overflow-wrap:anywhere}}.margin-weeks{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}}.margin-week{{padding:12px;border:1px solid var(--line);border-radius:6px}}.margin-week>span{{display:flex;justify-content:space-between;gap:8px;padding-top:7px}}.margin-week small{{display:block}}.table-scroll{{overflow-x:auto}}.margin-table{{width:100%;border-collapse:collapse;min-width:780px}}.margin-table th,.margin-table td{{padding:9px;text-align:left;border-bottom:1px solid var(--line);font-size:13px}}.margin-table td small{{display:block;margin-top:2px}}.margin-notes{{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px}}.margin-notes li span{{display:block;color:var(--muted);margin:2px 0 7px}}.margin-notes p{{line-height:1.6;color:var(--muted)}}
-@media(max-width:900px){{main{{padding:14px}}h1{{font-size:24px}}h2{{font-size:15px;word-break:break-all;overflow-wrap:anywhere;white-space:normal;width:100%;max-width:100%;min-width:0}}.report-nav{{margin:0 -14px;padding:8px 14px}}.grid{{grid-template-columns:1fr}}.span-2,.span-3,.span-4,.span-5,.span-6,.span-7,.span-12{{grid-column:span 1}}.holding-head{{display:none}}.holding-row,.sector-row,.rank-row,.proxy-row,.style-row,.quality-row,.replacement{{grid-template-columns:1fr}}.holding-field,.holding-action{{display:flex;justify-content:space-between;align-items:center;padding:4px 0}}.holding-field small,.holding-action small{{display:block}}.holding-field b,.holding-action .badge{{margin:0}}.holding-reason,.sector-evidence{{grid-column:auto}}.etf-grid,.difference,.synthesis-grid,.margin-kpis,.metric-guide,.dual-gauge,.margin-trends,.margin-weeks,.margin-notes{{grid-template-columns:1fr}}.replacement p{{grid-column:auto}}.data-row{{padding:13px 0}}.three-head{{display:none}}.three-row{{grid-template-columns:1fr}}.three-row>span{{display:flex;justify-content:space-between;align-items:center}}.rotation-note{{grid-template-columns:1fr auto}}.rotation-note small{{grid-column:1/-1}}.gauge>span{{align-items:flex-start;flex-direction:column}}}}
+.margin-kpis{{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}}.margin-kpis>div{{padding:13px;background:#f7f9fb;border:1px solid var(--line);border-radius:6px}}.margin-kpis small,.margin-kpis b,.margin-kpis span{{display:block}}.margin-kpis b{{font-size:21px;margin:6px 0}}.metric-guide{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:14px 0}}.metric-guide>div{{padding:13px;border:1px solid var(--line);border-radius:6px;background:#fff}}.metric-guide p{{margin:7px 0;line-height:1.55;color:var(--muted)}}.metric-guide strong,.metric-guide span{{display:block;font-size:13px;line-height:1.55}}.dual-gauge{{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:16px 0}}.gauge{{padding:14px;border:1px solid var(--line);border-radius:6px}}.gauge>span{{display:flex;justify-content:space-between;gap:10px}}.gauge-track{{height:12px;background:#edf0f3;border-radius:6px;overflow:hidden;margin:10px 0}}.gauge-track i{{display:block;height:100%;background:var(--warn)}}.gauge.pressure .gauge-track i{{background:var(--risk)}}.margin-regime{{padding:14px;border-left:4px solid var(--blue);background:#f7f9fb}}.margin-regime p{{margin:6px 0;line-height:1.6}}.score-chart{{margin:8px 0 18px;min-width:0}}.score-chart svg{{display:block;width:100%;height:auto;max-height:310px;background:#fafbfc;border:1px solid var(--line);border-radius:6px}}.score-chart figcaption{{margin-top:6px;color:var(--muted);font-size:12px;line-height:1.5}}.score-legend{{display:flex;gap:18px;flex-wrap:wrap;margin:8px 0;font-size:13px}}.score-legend span{{display:flex;align-items:center;gap:6px}}.score-legend span:before{{content:"";width:24px;border-top:3px solid var(--warn)}}.score-legend .pressure-line:before{{border-color:var(--risk);border-top-style:dashed}}.score-grid{{stroke:#dfe4ea;stroke-width:1}}.score-month{{stroke:#e8ebef;stroke-width:1;stroke-dasharray:3 5}}.score-axis-label{{fill:var(--muted);font-size:12px}}.score-heat{{stroke:var(--warn);stroke-width:3}}.score-pressure{{stroke:var(--risk);stroke-width:3;stroke-dasharray:9 6}}.pressure-peak-mark circle{{fill:#fff;stroke:var(--risk);stroke-width:3}}.pressure-peak-mark text{{fill:var(--risk);font-size:12px;font-weight:700}}.pressure-peak-detail{{margin-top:10px}}.pressure-peak-detail>small{{display:block;color:var(--muted);margin:3px 0 8px}}.pressure-peak-grid{{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}}.pressure-peak-grid>div{{padding:9px 10px;border:1px solid var(--line);border-left:3px solid var(--risk);border-radius:5px;background:#fafbfc}}.pressure-peak-grid b,.pressure-peak-grid span{{display:block}}.pressure-peak-grid span{{font-size:12px;margin-top:3px}}.pressure-peak-empty{{color:var(--muted);font-size:12px}}.margin-trends{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}}.spark{{margin:8px 0;color:var(--blue);min-width:0}}.spark svg{{display:block;width:100%;height:138px;background:#fafbfc;border:1px solid var(--line);border-radius:6px}}.spark figcaption{{margin-top:5px;color:var(--muted);font-size:12px;overflow-wrap:anywhere}}.margin-weeks{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}}.margin-week{{padding:12px;border:1px solid var(--line);border-radius:6px}}.margin-week>span{{display:flex;justify-content:space-between;gap:8px;padding-top:7px}}.margin-week small{{display:block}}.table-scroll{{overflow-x:auto}}.margin-table{{width:100%;border-collapse:collapse;min-width:780px}}.margin-table th,.margin-table td{{padding:9px;text-align:left;border-bottom:1px solid var(--line);font-size:13px}}.margin-table td small{{display:block;margin-top:2px}}.margin-notes{{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px}}.margin-notes li span{{display:block;color:var(--muted);margin:2px 0 7px}}.margin-notes p{{line-height:1.6;color:var(--muted)}}
+@media(max-width:900px){{main{{padding:14px}}h1{{font-size:24px}}h2{{font-size:15px;word-break:break-all;overflow-wrap:anywhere;white-space:normal;width:100%;max-width:100%;min-width:0}}.report-nav{{margin:0 -14px;padding:8px 14px}}.grid{{grid-template-columns:1fr}}.span-2,.span-3,.span-4,.span-5,.span-6,.span-7,.span-12{{grid-column:span 1}}.holding-head{{display:none}}.holding-row,.sector-row,.rank-row,.proxy-row,.style-row,.quality-row,.replacement{{grid-template-columns:1fr}}.holding-field,.holding-action{{display:flex;justify-content:space-between;align-items:center;padding:4px 0}}.holding-field small,.holding-action small{{display:block}}.holding-field b,.holding-action .badge{{margin:0}}.holding-reason,.sector-evidence{{grid-column:auto}}.etf-grid,.difference,.synthesis-grid,.margin-kpis,.metric-guide,.dual-gauge,.margin-trends,.margin-weeks,.margin-notes,.pressure-peak-grid{{grid-template-columns:1fr}}.replacement p{{grid-column:auto}}.data-row{{padding:13px 0}}.three-head{{display:none}}.three-row{{grid-template-columns:1fr}}.three-row>span{{display:flex;justify-content:space-between;align-items:center}}.rotation-note{{grid-template-columns:1fr auto}}.rotation-note small{{grid-column:1/-1}}.gauge>span{{align-items:flex-start;flex-direction:column}}}}
 @media print{{@page{{size:A4;margin:12mm}}body{{background:#fff;color:#000}}main{{max-width:none;padding:0}}.skip-link,.report-nav{{display:none}}.grid{{gap:8px;margin:8px 0}}.card,.etf-card,.replacement{{box-shadow:none;break-inside:avoid;border-color:#aaa}}details{{display:none}}a{{color:inherit;text-decoration:none}}}}
 </style></head><body data-report-format="{esc(report_format)}"><a class="skip-link" href="#report-main">跳到报告正文</a><main id="report-main">
 <header><h1>{esc(REPORT_TITLE)}</h1><p class="muted">Schema v{esc(data.get('schema_version'))} / 数据修订 {esc(data.get('data_revision') or 'legacy')} · 三周窗口 {esc((periods[0] if periods else {}).get('start_date') or week.get('start_date'))} → {esc(week.get('end_date'))} · {esc(status_display(week.get('period_mode')))}/{esc('完整周' if week.get('completeness') == 'complete' else '进行中周')} · {esc(portfolio.get('weight_basis_display') or portfolio.get('weight_basis'))}</p><div class="report-meta"><span>格式 {esc(report_format)}</span><span>持仓快照 {esc(holdings_fingerprint)}</span><span>证据 {esc(evidence_fingerprint)}</span><span>生成时间 {esc(data.get('as_of') or '-')}</span></div></header>
 <nav class="report-nav" aria-label="报告导航">{nav_html}</nav>
-<section class="grid" data-section="kpi">{metric('组合本周',pct(portfolio.get('weekly_return')),'进行中周仅作监测',tone(portfolio.get('weekly_return')))}{metric('截至当前复合',pct(three_portfolio.get('three_week_compound_return')),f"含进行中周；完整周复合 {pct(three_portfolio.get('completed_weeks_compound_return'))}",tone(three_portfolio.get('three_week_compound_return')))}{metric('净值覆盖率',pct((portfolio.get('nav_coverage_weight') or 0)*100),status_display(portfolio.get('return_status')),tone((portfolio.get('nav_coverage_weight') or 0)-.9))}{metric('本周监测风格',str(style_regime.get('current_regime') or '数据不足'),f"动作依据：{style_regime.get('action_regime') or '数据不足'}")}{metric('持续主线',str(sum(row.get('rotation_state') in {'持续主线','加速','新启动'} and row.get('monitor_state') in {'进行中延续','无进行中周'} for row in three.get('industries') or [])),'完整周确认且本周未转弱')}{metric('当前转弱/退潮',f"{current_risk_count}/{len(three.get('industries') or [])}",'行业全量；已排除进行中修复')}{metric('历史缓存命中',pct((cache_stats.get('historical_hit_rate') if cache_stats.get('historical_hit_rate') is not None else cache_stats.get('hit_rate') or 0)*100),'实时行情不计入分母')}{metric('真实缺口',str(len(unresolved)),'全部来源失败','negative' if unresolved else 'positive')}</section>
+<section class="grid" data-section="kpi">
+{metric('组合本周',pct(portfolio.get('weekly_return')),'完整交易周' if week.get('completeness') == 'complete' else '进行中周仅作监测',tone(portfolio.get('weekly_return')))}
+{metric('截至当前复合',pct(three_portfolio.get('three_week_compound_return')),f"{'三个完整周' if week.get('completeness') == 'complete' else '含进行中周'}；完整周复合 {pct(three_portfolio.get('completed_weeks_compound_return'))}",tone(three_portfolio.get('three_week_compound_return')))}
+{metric('净值覆盖率',pct((portfolio.get('nav_coverage_weight') or 0)*100),status_display(portfolio.get('return_status')),tone((portfolio.get('nav_coverage_weight') or 0)-.9))}
+{metric('本周监测风格',str(style_regime.get('current_regime') or '数据不足'),f"动作依据：{style_regime.get('action_regime') or '数据不足'}")}
+{metric('持续主线',str(sum(row.get('rotation_state') in {'持续主线','加速','新启动'} and row.get('monitor_state') in {'进行中延续','无进行中周'} for row in three.get('industries') or [])),'完整周确认且本周未转弱')}
+{metric('当前转弱/退潮',f"{current_risk_count}/{len(three.get('industries') or [])}",'行业全量；已排除进行中修复')}
+{metric('历史缓存命中',pct((cache_stats.get('historical_hit_rate') if cache_stats.get('historical_hit_rate') is not None else cache_stats.get('hit_rate') or 0)*100),'实时行情不计入分母')}
+{metric('真实缺口',str(len(unresolved)),'必需数据链尚未完整' if unresolved else '必需数据链均已取得','negative' if unresolved else 'positive')}
+</section>
 <section class="grid" data-section="llm-synthesis"><article class="card span-12 summary"><h2>三周综合判断</h2>{three_week_synthesis(data)}</article></section>
 <section class="grid" data-section="three-week-portfolio"><article class="card span-12"><h2>三周组合与持仓轨迹</h2><p class="muted">W0进行中时只用于监测，正式调仓依据来自两个完整周。“截至当前复合”包含进行中周，“完整周复合”才是动作证据；两者都要求对应周净值覆盖率达到90%。</p>{three_week_portfolio(three)}</article></section>
 <section class="grid" data-section="three-week-style"><article class="card span-12"><h2>风格三周收益与排名</h2>{three_week_styles(three)}</article></section>
@@ -456,11 +613,11 @@ p{{overflow-wrap:anywhere}}
 <section class="grid" data-section="holdings"><article class="card span-12"><h2>持仓本周表现</h2><p class="muted">{esc(str(portfolio.get('weight_assumption') or portfolio.get('weight_basis_display') or '按输入权重分析').rstrip('。'))}。当前组合占比是本报告的分析口径，不代表券商账户实时仓位。近1年最大回撤表示过去一年从阶段高点到低点的最大跌幅，负值越大风险越高。</p>{holding_rows(current)}</article></section>
 <section class="grid" data-section="style"><article class="card span-12"><h2>大盘与风格</h2>{style_rows(styles)}</article></section>
 <section class="grid" data-section="sector-week"><article class="card span-6"><h2>板块Top10：行业近5个交易日收益</h2><p class="muted">这是截止报告日向前5个交易日的滚动观察；自然周收益请以三周行业矩阵为准。</p>{sector_rows(sectors.get('industry_return') or [])}</article><article class="card span-6"><h2>板块Top10：概念近5个交易日收益</h2><p class="muted">这是截止报告日向前5个交易日的滚动观察；自然周收益请以三周概念矩阵为准。</p>{sector_rows(sectors.get('concept_return') or [])}</article></section>
-<section class="grid" data-section="sector-today"><article class="card span-6"><h2>今日涨跌：行业（非周收益）</h2>{sector_rows(sectors.get('industry_today') or [],'today_return')}</article><article class="card span-6"><h2>{esc('最近有效收盘概念行情' if sectors.get('concept_snapshot_kind') == 'latest_close' else '今日涨跌：概念（非周收益）')}</h2><p class="muted">{esc(sectors.get('concept_snapshot_date') or week.get('collection_trade_date') or '-')} · 不参与周收益计算</p>{sector_rows(sectors.get('concept_today') or [],'today_return')}</article></section>
-<section class="grid" data-section="sector-today-flow"><article class="card span-6"><h2>报告期后当日资金流入（{esc(week.get('collection_trade_date'))}，不参与上周结论）</h2>{sector_rows((sectors.get('industry_today_inflow') or [])[:5]+(sectors.get('concept_today_inflow') or [])[:5],'today_return')}</article><article class="card span-6"><h2>报告期后当日资金流出（{esc(week.get('collection_trade_date'))}，不参与上周结论）</h2>{sector_rows((sectors.get('industry_today_outflow') or [])[:5]+(sectors.get('concept_today_outflow') or [])[:5],'today_return')}</article></section>
-<section class="grid" data-section="flows"><article class="card span-6"><h2>报告期5日资金流入（截至 {esc(week.get('end_date'))}）</h2>{sector_rows((sectors.get('industry_inflow') or [])[:5]+(sectors.get('concept_inflow') or [])[:5])}</article><article class="card span-6"><h2>报告期5日资金流出（截至 {esc(week.get('end_date'))}）</h2>{sector_rows((sectors.get('industry_outflow') or [])[:5]+(sectors.get('concept_outflow') or [])[:5])}</article></section>
+<section class="grid" data-section="sector-today"><article class="card span-6"><h2>今日涨跌：行业（非周收益）</h2><p class="muted">{esc(((sectors.get('industry_today') or [{}])[0]).get('source_date') or week.get('collection_trade_date') or '-')} · 不参与周收益计算</p>{sector_rows(sectors.get('industry_today') or [],'today_return')}</article><article class="card span-6"><h2>{esc('最近有效收盘概念行情' if sectors.get('concept_snapshot_kind') == 'latest_close' else '今日涨跌：概念（非周收益）')}</h2><p class="muted">{esc(sectors.get('concept_snapshot_date') or week.get('collection_trade_date') or '-')} · 不参与周收益计算</p>{sector_rows(sectors.get('concept_today') or [],'today_return')}</article></section>
+<section class="grid" data-section="sector-today-flow"><article class="card span-6"><h2>报告期后当日资金流入（{esc(week.get('collection_trade_date'))}，不参与报告周结论）</h2>{sector_rows((sectors.get('industry_today_inflow') or [])[:5]+(sectors.get('concept_today_inflow') or [])[:5],'today_return')}</article><article class="card span-6"><h2>报告期后当日资金流出（{esc(week.get('collection_trade_date'))}，不参与报告周结论）</h2>{sector_rows((sectors.get('industry_today_outflow') or [])[:5]+(sectors.get('concept_today_outflow') or [])[:5],'today_return')}</article></section>
+<section class="grid" data-section="flows">{flow_panels(sectors, week.get('end_date'))}</section>
 <section class="grid" data-section="difference"><article class="card span-12"><h2>板块与持仓差异</h2><div class="difference"><div><b>已覆盖</b><p>{esc(covered)}</p></div><div><b>未覆盖方向（非买入建议）</b><p>{esc(missing)}</p></div><div><b>重复/拥挤</b><p>{esc(overlap)}</p></div></div></article></section>
-<section class="grid" data-section="proxy"><article class="card span-5"><h2>基金主题热度代理</h2>{proxy_rows(sectors.get('theme_signal_proxy') or [])}</article><article class="card span-7"><h2>近1周基金排行</h2>{top_funds(market.get('weekly_top_funds') or [])}</article></section>
+<section class="grid" data-section="proxy"><article class="card span-5"><h2>基金主题热度代理</h2>{proxy_rows(sectors.get('theme_signal_proxy') or [])}</article><article class="card span-7"><h2>近1周基金排行</h2><p class="muted">采集日 {esc(week.get('collection_trade_date') or '-')} 的近1周快照，不是报告周净值口径；只作信号</p>{top_funds(market.get('weekly_top_funds') or [])}</article></section>
 <section class="grid" data-section="etf"><article class="card span-12"><h2>ETF交易质量</h2><div class="etf-grid">{etf_cards(data.get('candidate_etfs') or [])}</div></article></section>
 <section class="grid" data-section="replacement"><article class="card span-12"><h2>Top3替换观察</h2>{replacements(comparison)}</article></section>
 <section class="grid" data-section="cache-audit"><article class="card span-12"><h2>增量缓存</h2><p>数据库：{esc((data.get('cache') or {}).get('database') or '本次未启用共享缓存')}</p><p class="muted">历史逻辑数据集 {esc(cache_stats.get('historical_logical_datasets') or 0)} · 命中 {esc(cache_stats.get('historical_logical_hits') or 0)} · 命中率 {pct((cache_stats.get('historical_hit_rate') or 0)*100)}；实时行情不计入该分母。底层调用命中率 {pct((cache_stats.get('hit_rate') or 0)*100)}。历史时序、实时快照与分析模型版本分离保存。</p></article></section>

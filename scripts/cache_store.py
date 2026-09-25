@@ -13,6 +13,8 @@ from typing import Any, Iterable
 
 
 CACHE_SCHEMA_VERSION = 2
+# Mirrors tushare_proxy.OFFICIAL_PROVIDER; duplicated to avoid an import cycle.
+PREFERRED_PROVIDER = "Tushare Pro 官方"
 
 
 def stable_hash(value: Any) -> str:
@@ -172,6 +174,25 @@ class CacheStore:
             )
             return connection.total_changes - before
 
+    def upsert_rows_by_provider(
+        self,
+        dataset: str,
+        symbol: str,
+        rows: list[dict[str, Any]],
+        *,
+        default_provider: str = "multi_source",
+    ) -> int:
+        """Write each row under the provider recorded in its own payload.
+
+        Merged series combine cached, proxy and public rows. Labelling the whole batch
+        with one provider would promote fallback rows to the preferred source, which
+        ``get_series`` then keeps even after a later correct refresh.
+        """
+        groups: dict[str, list[dict[str, Any]]] = {}
+        for row in rows:
+            groups.setdefault(str(row.get("provider") or default_provider), []).append(row)
+        return sum(self.upsert_series(provider, dataset, symbol, group) for provider, group in groups.items())
+
     def get_series(
         self,
         dataset: str,
@@ -196,15 +217,17 @@ class CacheStore:
         if provider:
             query = f"SELECT payload_json FROM time_series WHERE {where} ORDER BY trade_date"
         else:
-            # A logical series may be recovered by more than one provider. Keep the
-            # most recently validated record for each trading day so fallback data
-            # cannot inflate sample counts or create duplicate observations.
+            # A logical series may be recovered by more than one provider. Keep one
+            # record per trading day so fallback data cannot inflate sample counts.
+            # Official Tushare wins over public fallbacks for the same day; otherwise
+            # a later degraded public refresh could overwrite verified history.
             query = f"""
                 SELECT payload_json FROM (
                     SELECT payload_json, trade_date,
                            ROW_NUMBER() OVER (
                                PARTITION BY trade_date
-                               ORDER BY fetched_at DESC, provider ASC
+                               ORDER BY CASE provider WHEN '{PREFERRED_PROVIDER}' THEN 0 ELSE 1 END,
+                                        fetched_at DESC, provider ASC
                            ) AS row_rank
                     FROM time_series
                     WHERE {where}

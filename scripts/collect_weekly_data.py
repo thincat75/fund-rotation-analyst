@@ -13,7 +13,9 @@ from typing import Any
 
 from data_access import (
     AkshareClient,
+    NAV_MODEL_VERSION,
     dataset_status,
+    derive_adjusted_fund_nav,
     holdings_metadata,
     holdings_hash,
     load_json,
@@ -234,7 +236,9 @@ def resolve_week(trade_dates: list[dt.date], today: dt.date, explicit_end: dt.da
         monday = anchor - dt.timedelta(days=anchor.weekday())
         cutoff = anchor
         period_mode = "explicit"
-        completeness = "complete" if anchor.weekday() >= 4 else "partial"
+        week_sessions = [day for day in trade_dates if monday <= day <= monday + dt.timedelta(days=6)]
+        # A holiday-shortened week is complete once its last exchange session has closed.
+        completeness = "complete" if (anchor >= week_sessions[-1] if week_sessions else anchor.weekday() >= 4) else "partial"
     else:
         if today.weekday() >= 5:
             monday = today - dt.timedelta(days=today.weekday())
@@ -261,6 +265,7 @@ def resolve_week(trade_dates: list[dt.date], today: dt.date, explicit_end: dt.da
         "baseline_date": baseline.isoformat(),
         "start_date": start_date.isoformat(),
         "end_date": end_date.isoformat(),
+        "trading_dates": [day.isoformat() for day in eligible],
         "calendar_source": "akshare" if trade_dates else "weekday_fallback",
     }
 
@@ -303,6 +308,39 @@ def index_close_on(records: list[dict[str, Any]], target: str) -> float | None:
     return None
 
 
+FUND_NAV_LOOKBACK_DAYS = 390
+FUND_NAV_COVERAGE_DAYS = 365
+FUND_NAV_COVERAGE_SLACK_DAYS = 14
+VALID_FUND_NAV_BASES = {"日增长率复权单位净值", "unit_accum_reinvested", "adj_nav"}
+
+
+def cached_fund_nav_usable(records: list[dict[str, Any]], week: dict[str, Any]) -> bool:
+    """A cached NAV slice must reach the cutoff, carry the analysis NAV, and span about one year.
+
+    Funds younger than the lookback are complete when the slice starts at the
+    recorded first NAV of the fetched series.
+    """
+    dates = extract_trade_dates(records)
+    end_day = parse_day(week["end_date"])
+    if not dates or dates[-1] < end_day:
+        return False
+    if any((parse_number(row.get("分析净值")) or 0) <= 0 for row in records):
+        return False
+    # One adjusted basis only: mixed or accumulated-NAV rows reintroduce distribution gaps.
+    bases = {row.get("nav_basis") for row in records}
+    if len(bases) != 1 or not bases <= VALID_FUND_NAV_BASES:
+        return False
+    if bases != {"adj_nav"} and any(row.get("nav_model_version") != NAV_MODEL_VERSION for row in records):
+        return False
+    # Adjusted NAV is anchored at each fetch's first row; rows from fetches with
+    # different anchors would create artificial jumps after a distribution.
+    if len({row.get("series_start_date") for row in records}) != 1:
+        return False
+    required_start = end_day - dt.timedelta(days=FUND_NAV_COVERAGE_DAYS - FUND_NAV_COVERAGE_SLACK_DAYS)
+    series_start = parse_day(records[0].get("series_start_date"))
+    return dates[0] <= required_start or (series_start is not None and dates[0] <= series_start)
+
+
 def collect_style_indexes(
     client: AkshareClient,
     week: dict[str, Any],
@@ -312,7 +350,11 @@ def collect_style_indexes(
 ) -> tuple[dict[str, list[dict[str, Any]]], dict[str, dict[str, Any]]]:
     output: dict[str, list[dict[str, Any]]] = {}
     metadata: dict[str, dict[str, Any]] = {}
-    start = (parse_day(week["baseline_date"]) - dt.timedelta(days=95)).strftime("%Y%m%d")
+    end_day = parse_day(week["end_date"])
+    score_history_start = dt.date(end_day.year - 1, 12, 1)
+    weekly_history_start = parse_day(week["baseline_date"]) - dt.timedelta(days=95)
+    requested_start = min(score_history_start, weekly_history_start)
+    start = requested_start.strftime("%Y%m%d")
     end = week["end_date"].replace("-", "")
     refresh_datasets = refresh_datasets or set()
     for name, symbols in STYLE_INDEXES.items():
@@ -323,6 +365,9 @@ def collect_style_indexes(
         if store and "style_index" not in refresh_datasets and f"style_index:{symbols['primary']}" not in refresh_datasets:
             cached = store.get_series("style_index", name, end_date=week["end_date"])
             valid, _, cached_latest = index_records_cover_week(cached, week) if cached else (False, "", None)
+            cached_dates = extract_trade_dates(cached)
+            if valid and (not cached_dates or cached_dates[0] > requested_start + dt.timedelta(days=7)):
+                valid = False
             if valid:
                 records, resolved_source, latest_date = cached, "sqlite_incremental_cache", cached_latest
                 datasets.append({
@@ -397,9 +442,20 @@ def collect_style_indexes(
     return output, metadata
 
 
-def _cached_series_complete(rows: list[dict[str, Any]], cutoff: str, *, minimum_rows: int = 1) -> bool:
+def _cached_series_complete(
+    rows: list[dict[str, Any]], cutoff: str, *, minimum_rows: int = 1, required_dates: list[str] | None = None,
+) -> bool:
     dates = extract_trade_dates(rows)
-    return bool(len(rows) >= minimum_rows and dates and dates[-1].isoformat() >= cutoff)
+    if not (len(rows) >= minimum_rows and dates and dates[-1].isoformat() >= cutoff):
+        return False
+    # Reaching the cutoff is not enough: a report-end snapshot on top of stale
+    # history would otherwise hide missing sessions forever.
+    return not _missing_dates(rows, required_dates)
+
+
+def _missing_dates(rows: list[dict[str, Any]], required_dates: list[str] | None) -> list[str]:
+    present = {day.isoformat() for day in extract_trade_dates(rows)}
+    return [day for day in required_dates or [] if day not in present]
 
 
 def collect_margin_leverage_data(
@@ -412,8 +468,15 @@ def collect_margin_leverage_data(
     week: dict[str, Any],
     margin_mode: str,
     refresh_datasets: list[str],
+    *,
+    recent_trade_dates: list[str] | None = None,
 ) -> dict[str, Any]:
-    """Collect沪深 aggregate margin and same-day market statistics."""
+    """Collect沪深 aggregate margin and same-day market statistics.
+
+    ``recent_trade_dates`` lists exchange sessions that cached history must contain;
+    a cache that only reaches the cutoff but skips sessions is refilled.
+    """
+    recent = sorted(day for day in recent_trade_dates or [] if day <= week["end_date"])
     proxy_metadata = getattr(proxy_client, "metadata", {}) if proxy_client else {}
     tushare_provider = str(proxy_metadata.get("provider") or TUSHARE_PROVIDER)
     if margin_mode == "off":
@@ -435,14 +498,16 @@ def collect_margin_leverage_data(
     for exchange, ak_function in (("SSE", "macro_china_market_margin_sh"), ("SZSE", "macro_china_market_margin_sz")):
         dataset = f"margin_summary:{exchange}"
         cached = [] if dataset in refresh or "margin_summary" in refresh else store.get_series("margin_summary", exchange, end_date=cutoff)
-        selected: list[dict[str, Any]] = cached if _cached_series_complete(cached, cutoff, minimum_rows=500) else []
+        selected: list[dict[str, Any]] = cached if _cached_series_complete(cached, cutoff, minimum_rows=500, required_dates=recent) else []
         attempts: list[dict[str, Any]] = []
         proxy_rows: list[dict[str, Any]] = []
         if proxy_client and not selected and (policy == "shadow" or proxy_enabled_for(policy, proxy_health, dataset, "margin_summary")):
             before = len(proxy_client.statuses)
             request_start = start_key
             if len(cached) >= MIN_PERCENTILE_SAMPLE and dataset not in refresh and "margin_summary" not in refresh:
-                request_start = (dt.date.fromisoformat(cached[-1]["trade_date"]) + dt.timedelta(days=1)).strftime("%Y%m%d")
+                missing = _missing_dates(cached, recent)
+                resume_from = dt.date.fromisoformat(missing[0]) if missing else dt.date.fromisoformat(cached[-1]["trade_date"]) + dt.timedelta(days=1)
+                request_start = resume_from.strftime("%Y%m%d")
             raw_proxy = proxy_client.call(dataset, "margin", {"exchange_id": exchange, "start_date": request_start, "end_date": end_key})
             proxy_rows = normalize_margin_rows(raw_proxy, exchange, tushare_provider, cutoff=cutoff)
             proxy_shadow[dataset] = proxy_rows
@@ -462,7 +527,7 @@ def collect_margin_leverage_data(
             selected = cached
         exchanges[exchange] = selected
         if selected:
-            store.upsert_series(selected[-1].get("provider") or "multi_source", "margin_summary", exchange, selected)
+            store.upsert_rows_by_provider("margin_summary", exchange, selected)
         logical = dataset_status(
             dataset, attempts, basis="融资融券交易所日汇总（人民币元）", source_date=selected[-1]["trade_date"] if selected else cutoff,
             requirement="optional", impact="display", empty_status="optional_unavailable",
@@ -490,7 +555,7 @@ def collect_margin_leverage_data(
         bse_attempts.extend(proxy_client.statuses[before:])
     exchanges["BSE"] = bse_rows
     if bse_rows:
-        store.upsert_series(bse_rows[-1].get("provider") or "multi_source", "margin_summary", "BSE", bse_rows)
+        store.upsert_rows_by_provider("margin_summary", "BSE", bse_rows)
     bse_status = dataset_status(
         "margin_summary:BSE", bse_attempts, basis="北交所单列展示", source_date=bse_rows[-1]["trade_date"] if bse_rows else cutoff,
         requirement="optional", impact="display", empty_status="optional_unavailable",
@@ -503,7 +568,7 @@ def collect_margin_leverage_data(
         dataset = f"market_daily_info:{exchange}"
         cached = [] if dataset in refresh or "market_daily_info" in refresh else store.get_series("market_daily_info", exchange, end_date=cutoff)
         current_cached = _cached_series_complete(cached, cutoff)
-        history_cached = _cached_series_complete(cached, cutoff, minimum_rows=MIN_PERCENTILE_SAMPLE)
+        history_cached = _cached_series_complete(cached, cutoff, minimum_rows=MIN_PERCENTILE_SAMPLE, required_dates=recent)
         proxy_allowed = bool(
             proxy_client
             and (policy == "shadow" or proxy_enabled_for(policy, proxy_health, dataset, "market_daily_info"))
@@ -516,8 +581,10 @@ def collect_margin_leverage_data(
         if proxy_allowed and (not history_cached or policy == "shadow"):
             before = len(proxy_client.statuses)
             request_start = start_key
-            if history_cached and cached and dataset not in refresh and "market_daily_info" not in refresh:
-                request_start = (dt.date.fromisoformat(cached[-1]["trade_date"]) + dt.timedelta(days=1)).strftime("%Y%m%d")
+            if len(cached) >= MIN_PERCENTILE_SAMPLE and dataset not in refresh and "market_daily_info" not in refresh:
+                missing = _missing_dates(cached, recent)
+                resume_from = dt.date.fromisoformat(missing[0]) if missing else dt.date.fromisoformat(cached[-1]["trade_date"]) + dt.timedelta(days=1)
+                request_start = resume_from.strftime("%Y%m%d")
             raw_proxy = proxy_client.call(
                 dataset, "daily_info",
                 {"ts_code": ts_code, "exchange": ts_exchange, "start_date": request_start, "end_date": end_key},
@@ -529,23 +596,33 @@ def collect_margin_leverage_data(
                 merged = {row["trade_date"]: row for row in cached}
                 merged.update({row["trade_date"]: row for row in proxy_rows})
                 selected = [merged[day] for day in sorted(merged)]
-        # Public exchange fallbacks provide the report-end snapshot even when no historical denominator exists.
-        if not selected or policy == "shadow":
+        # Public exchange fallbacks provide the report-end snapshot even when no historical
+        # denominator exists, and refill recent sessions the cache skipped.
+        base_rows = selected or cached
+        # Cap per-day public requests; older gaps belong to backfill_margin_market_history.py.
+        missing_recent = [day for day in _missing_dates(base_rows, recent) if day != cutoff][-15:]
+        need_cutoff = not selected or policy == "shadow"
+        if need_cutoff or missing_recent:
             before = len(client.statuses)
             function = "stock_sse_deal_daily" if exchange == "SSE" else "stock_szse_summary"
-            raw_public = client.call(dataset, function, [{"date": end_key}], key_extra={"margin_market_snapshot": cutoff})
-            public_rows = normalize_exchange_market_snapshot(raw_public, exchange, cutoff, "交易所公开汇总")
+            public_rows: list[dict[str, Any]] = []
+            if need_cutoff:
+                raw_public = client.call(dataset, function, [{"date": end_key}], key_extra={"margin_market_snapshot": cutoff})
+                public_rows.extend(normalize_exchange_market_snapshot(raw_public, exchange, cutoff, "交易所公开汇总"))
+            for day in missing_recent:
+                raw_day = client.call(f"{dataset}:{day}", function, [{"date": day.replace("-", "")}], key_extra={"margin_market_snapshot": day})
+                public_rows.extend(normalize_exchange_market_snapshot(raw_day, exchange, day, "交易所公开汇总"))
             attempts.extend(client.statuses[before:])
-            if public_rows and (not selected or policy == "shadow"):
-                # Preserve historical cache and replace the same-day row deterministically.
-                merged = {row["trade_date"]: row for row in cached}
+            if public_rows:
+                # Preserve historical cache and replace same-day rows deterministically.
+                merged = {row["trade_date"]: row for row in base_rows}
                 merged.update({row["trade_date"]: row for row in public_rows})
                 selected = [merged[day] for day in sorted(merged)]
         if not selected and cached:
             selected = cached
         market_daily[exchange] = selected
         if selected:
-            store.upsert_series(selected[-1].get("provider") or "multi_source", "market_daily_info", exchange, selected)
+            store.upsert_rows_by_provider("market_daily_info", exchange, selected)
         logical = dataset_status(
             dataset, attempts, basis="A股流通市值与股票成交额（统一为元）",
             source_date=selected[-1]["trade_date"] if selected else cutoff,
@@ -970,6 +1047,7 @@ def collect_etfs(
     week: dict[str, Any],
     datasets: list[dict[str, Any]],
     mode: str = "quick",
+    trading_dates: list[dt.date] | None = None,
 ) -> dict[str, Any]:
     spot_start = len(client.statuses)
     spot_em = client.call_custom(
@@ -1024,18 +1102,28 @@ def collect_etfs(
                 key_extra=week,
             )
         adjusted_available = bool(history[code].get("hfq") and history[code].get("qfq"))
-        nav[code] = [] if mode == "quick" and adjusted_available else client.call(
+        # The report-end closing premium needs a date-aligned unit NAV even when
+        # adjusted prices already cover the return, so NAV is fetched in quick mode too.
+        etf_nav = client.call(
             f"{code} ETF NAV", "fund_etf_fund_info_em",
-            [{"symbol": code, "indicator": "单位净值走势"}, {"fund": code}, {"symbol": code}],
+            [{"fund": code}, {"symbol": code, "indicator": "单位净值走势"}, {"symbol": code}],
             key_extra=week,
         )
+        if not etf_nav:
+            etf_nav = client.call(
+                f"{code} ETF NAV open-fund fallback", "fund_open_fund_info_em",
+                [{"symbol": code, "indicator": "单位净值走势"}], key_extra=week,
+            )
+        nav[code] = derive_adjusted_fund_nav(etf_nav, trading_dates)
         feeder = ETF_FEEDERS.get(code)
         if feeder and not (mode == "quick" and adjusted_available):
             feeder_nav[code] = {
                 "feeder_code": feeder,
-                "records": client.call(f"{code} feeder {feeder} NAV", "fund_open_fund_info_em", [{"symbol": feeder, "indicator": "累计净值走势"}, {"symbol": feeder, "indicator": "单位净值走势"}], key_extra=week),
+                "records": derive_adjusted_fund_nav(client.call(f"{code} feeder {feeder} NAV", "fund_open_fund_info_em", [{"symbol": feeder, "indicator": "单位净值走势"}, {"symbol": feeder, "indicator": "累计净值走势"}], key_extra=week), trading_dates),
             }
-        if not any(history[code].values()):
+        # Adjusted prices are not closing prices; the premium and close need an
+        # unadjusted or forward-adjusted series, so fall back to Sina without one.
+        if not (history[code].get("none") or history[code].get("qfq")):
             market_symbol = ("sh" if code.startswith(("5", "6")) else "sz") + code
             history_sina[code] = client.call(f"{code} ETF history Sina fallback", "fund_etf_hist_sina", [{"symbol": market_symbol}], key_extra=week)
         datasets.append(dataset_status(f"etf_return:{code}", client.statuses[status_start:], basis="复权价格/累计净值/联接代理/新浪价格", source_date=week["end_date"]))
@@ -1112,7 +1200,8 @@ def load_profile_cache(profile_dir: Path, code: str, max_days: int = 180) -> dic
     payload["stale_days"] = age
     payload["cache_path"] = str(path)
     components = payload.get("profile_components") or profile_components(payload.get("detail") or {})
-    incomplete = not components.get("basic_info") or not (components.get("stock_holdings") or components.get("industry_allocation"))
+    # Industry allocation alone (e.g. "制造业") cannot identify a fund theme; holdings are required.
+    incomplete = not components.get("basic_info") or not components.get("stock_holdings")
     payload["profile_status"] = "stale_profile" if age > 90 else "stale_basic_info" if age > 30 else "partial_profile" if incomplete else "ok"
     payload["freshness"] = {"basic_scale_turnover_ttl_days": 30, "holdings_industry_ttl_days": 90, "maximum_reference_age_days": 180}
     payload.setdefault("disclosure_date", profile_disclosure_date(payload.get("detail") or {}))
@@ -1144,14 +1233,15 @@ def profile_components(detail: dict[str, Any]) -> dict[str, bool]:
     }
 
 
-def save_profile_cache(profile_dir: Path, code: str, detail: dict[str, Any]) -> dict[str, Any]:
+def save_profile_cache(profile_dir: Path, code: str, detail: dict[str, Any], **extra: Any) -> dict[str, Any]:
     components = profile_components(detail)
-    status = "ok" if components["basic_info"] and (components["stock_holdings"] or components["industry_allocation"]) else "partial_profile"
+    status = "ok" if components["basic_info"] and components["stock_holdings"] else "partial_profile"
     payload = {
         "code": code, "cached_at": dt.date.today().isoformat(), "stale_days": 0,
         "profile_status": status, "disclosure_date": profile_disclosure_date(detail),
         "profile_components": components, "detail": detail,
     }
+    payload.update(extra)
     write_json(profile_dir / f"{code}.json", payload)
     return payload
 
@@ -1474,16 +1564,17 @@ def apply_tushare_overlay(
                 f"fund_nav:{code}", "fund_nav",
                 {"ts_code": ts_code, "start_date": start_long, "end_date": end} if ts_code else {"ts_code": f"UNRESOLVED:{code}"},
             ) if ts_code else []
-            normalized = normalize_fund_nav(rows, week["end_date"])
+            normalized = normalize_fund_nav(rows, week["end_date"], [parse_day(day) for day in payload.get("trade_calendar") or [] if parse_day(day)])
             status = normalized_tushare_status(
-                f"fund_nav:{code}", client.statuses[status_start:], "adj_nav优先，其次accum_nav",
+                f"fund_nav:{code}", client.statuses[status_start:], "adj_nav全序列可用时优先，否则unit_nav+accum_nav再投资推算",
                 week["end_date"], provider=provider, transport=transport,
             )
             status["promotion_eligible"] = bool(normalized and status["promotion_eligible"])
             shadow[f"fund_nav:{code}"] = normalized
-            if policy == "auto" and normalized:
+            # Replace the public NAV only when the proxy series reaches the cutoff.
+            if policy == "auto" and normalized and normalized[-1]["净值日期"] >= week["end_date"]:
                 payload["funds"].setdefault(code, {})["nav"] = normalized
-                payload["funds"][code].update({"provider": provider, "nav_basis": "adj_nav_then_accum_nav"})
+                payload["funds"][code].update({"provider": provider, "nav_basis": normalized[-1].get("nav_basis")})
                 status["crosscheck_status"] = health_crosscheck_for(health, f"fund_nav:{code}", "fund_nav")
                 replace_dataset_status(datasets, status)
                 used_datasets.append(f"fund_nav:{code}")
@@ -2008,13 +2099,21 @@ def collect_live(args: argparse.Namespace, holdings: list[dict[str, Any]]) -> di
         datasets = [dataset_status("trade_calendar", calendar_client.statuses, basis="A股交易日历")]
 
     funds = {}
+    fund_nav_start = (parse_day(week["end_date"]) - dt.timedelta(days=FUND_NAV_LOOKBACK_DAYS)).isoformat()
     for holding in holdings:
         code = holding["code"]
         cached_nav = []
         if not args.refresh and "fund_nav" not in args.refresh_dataset and f"fund_nav:{code}" not in args.refresh_dataset:
-            cached_nav = store.get_series("fund_nav", code, start_date=week["history_start_date"], end_date=week["end_date"])
+            # Scores need one-year drawdown and three-month returns, not just the weekly
+            # window. Each provider anchors its adjusted NAV differently, so never mix
+            # providers within one series.
+            for cache_provider in ("AkShare及公开备用源", tushare_provider):
+                candidate = store.get_series("fund_nav", code, provider=cache_provider, start_date=fund_nav_start, end_date=week["end_date"])
+                if cached_fund_nav_usable(candidate, week):
+                    cached_nav = candidate
+                    break
         cached_dates = extract_trade_dates(cached_nav)
-        if cached_nav and cached_dates and cached_dates[-1] >= parse_day(week["end_date"]):
+        if cached_nav:
             funds[code] = {"nav": cached_nav, "provider": "本地增量缓存"}
             status = {
                 "dataset": f"fund_nav:{code}", "attempted_sources": ["sqlite_incremental_cache"],
@@ -2026,10 +2125,9 @@ def collect_live(args: argparse.Namespace, holdings: list[dict[str, Any]]) -> di
             cache_audit.append(status)
             continue
         status_start = len(client.statuses)
-        funds[code] = {
-            "nav": client.call(f"{code} fund NAV", "fund_open_fund_info_em", [{"symbol": code, "indicator": "累计净值走势"}, {"symbol": code, "indicator": "单位净值走势"}])
-        }
-        datasets.append(dataset_status(f"fund_nav:{code}", client.statuses[status_start:], basis="累计净值优先", source_date=week["end_date"]))
+        raw_nav = client.call(f"{code} fund NAV", "fund_open_fund_info_em", [{"symbol": code, "indicator": "单位净值走势"}, {"symbol": code, "indicator": "累计净值走势"}])
+        funds[code] = {"nav": derive_adjusted_fund_nav(raw_nav, trade_dates)}
+        datasets.append(dataset_status(f"fund_nav:{code}", client.statuses[status_start:], basis="日增长率复权单位净值优先，其次累计净值", source_date=week["end_date"]))
 
     ranking_start = len(client.statuses)
     rankings = collect_rankings(client)
@@ -2045,6 +2143,7 @@ def collect_live(args: argparse.Namespace, holdings: list[dict[str, Any]]) -> di
     profile_dir = shared_cache_root / "profiles"
     profile_codes = list(dict.fromkeys([item["code"] for item in holdings] + ranking_candidate_codes(rankings)))
     fund_profiles: dict[str, Any] = {}
+    holding_codes = {item["code"] for item in holdings}
     for code in profile_codes:
         if args.mode == "full":
             status_start = len(client.statuses)
@@ -2059,6 +2158,26 @@ def collect_live(args: argparse.Namespace, holdings: list[dict[str, Any]]) -> di
             datasets.append(profile_dataset)
         else:
             cached = load_profile_cache(profile_dir, code)
+            holdings_checked = parse_day(cached.get("holdings_unavailable_checked"))
+            recently_checked = holdings_checked is not None and (dt.date.today() - holdings_checked).days <= 30
+            if code in holding_codes and not (cached.get("profile_components") or {}).get("stock_holdings") and not recently_checked:
+                # Current holdings' themes come from disclosed stock holdings; reusing a
+                # cached profile without them would silently reduce scoring to user tags.
+                status_start = len(client.statuses)
+                detail = collect_profile(client, code, f"fund profile {code}")
+                merged = {**(cached.get("detail") or {}), **{key: value for key, value in detail.items() if value}}
+                # Keep the old cache date when basic info was not refreshed, so staleness stays visible.
+                keep_age = {} if (detail.get("basic_info") or detail.get("ths_info")) or not cached.get("cached_at") else {"cached_at": cached["cached_at"]}
+                if detail.get("stock_holdings"):
+                    fund_profiles[code] = save_profile_cache(profile_dir, code, merged, **keep_age)
+                    datasets.append(dataset_status(f"fund_profile:{code}", client.statuses[status_start:], basis="缓存缺少季度持仓，已补抓基本资料与季度持仓"))
+                    continue
+                if merged:
+                    # Bond, FOF or commodity funds genuinely hold no stocks; remember the
+                    # check so quick runs do not refetch the profile every time.
+                    cached = save_profile_cache(
+                        profile_dir, code, merged, holdings_unavailable_checked=dt.date.today().isoformat(), **keep_age,
+                    )
             if cached:
                 fund_profiles[code] = cached
                 datasets.append({
@@ -2074,10 +2193,14 @@ def collect_live(args: argparse.Namespace, holdings: list[dict[str, Any]]) -> di
     ranking_details = {code: profile.get("detail") or {} for code, profile in fund_profiles.items() if code in set(ranking_candidate_codes(rankings))}
     style_indexes, style_index_meta = collect_style_indexes(client, week, datasets, store, args.refresh_dataset)
     sectors = collect_sectors(client, datasets, week, shared_cache_root / "sector_snapshots", args.mode)
-    candidate_etfs = collect_etfs(client, args.etf, week, datasets, args.mode)
+    candidate_etfs = collect_etfs(client, args.etf, week, datasets, args.mode, trade_dates)
     margin_raw = collect_margin_leverage_data(
         client, proxy_client, proxy_health, args.provider_policy, store, datasets, week,
         args.margin_mode, args.refresh_dataset,
+        # A weekday-fallback calendar would treat exchange holidays as missing sessions forever.
+        recent_trade_dates=[] if week.get("calendar_source") == "weekday_fallback" else [
+            day.isoformat() for day in trade_dates if day <= parse_day(week["end_date"])
+        ][-20:],
     )
 
     payload = {
@@ -2087,6 +2210,7 @@ def collect_live(args: argparse.Namespace, holdings: list[dict[str, Any]]) -> di
         "source": "multi_source",
         "mode": args.mode,
         "week": week,
+        "trade_calendar": [day.isoformat() for day in trade_dates],
         "holdings": holdings,
         "portfolio_meta": getattr(args, "portfolio_meta", {}),
         "holdings_hash": holdings_hash(holdings),

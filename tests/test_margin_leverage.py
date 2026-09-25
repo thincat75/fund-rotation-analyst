@@ -143,6 +143,26 @@ class MarginAnalysisTests(unittest.TestCase):
         self.assertIn("不是越高越好", result["metric_guide"]["financing_leverage_density"]["direction"])
         self.assertIn("越低越平稳", result["metric_guide"]["deleveraging_pressure"]["direction"])
 
+    def test_current_year_score_series_is_walk_forward_and_bounded(self) -> None:
+        raw, styles = sample_history()
+        cutoff = raw["exchanges"]["SSE"][-1]["trade_date"]
+        result = analyze_margin_leverage(
+            raw,
+            styles,
+            cutoff=cutoff,
+            include_year_score_series=True,
+        )
+        rows = result["score_series_year"]
+        self.assertGreater(len(rows), 1)
+        self.assertEqual(result["score_series_year_start"], f"{cutoff[:4]}-01-01")
+        self.assertTrue(all(row["trade_date"] <= cutoff for row in rows))
+        for row in rows:
+            for field in ("heat_score", "deleveraging_pressure_score"):
+                value = row.get(field)
+                if value is not None:
+                    self.assertGreaterEqual(value, 0)
+                    self.assertLessEqual(value, 100)
+
     def test_partial_ratio_history_is_not_labeled_all_history(self) -> None:
         raw, styles = sample_history(620)
         result = analyze_margin_leverage(raw, styles, cutoff=raw["exchanges"]["SSE"][-1]["trade_date"])
